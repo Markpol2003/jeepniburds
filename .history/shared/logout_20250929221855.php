@@ -1,0 +1,40 @@
+<?php
+// Prevent caching so back button doesn't show protected pages
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Cache-Control: post-check=0, pre-check=0', false);
+header('Pragma: no-cache');
+header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
+
+session_start();
+
+// Unset all session variables
+$_SESSION = [];
+if (function_exists('session_unset')) {
+    session_unset();
+}
+
+// If session uses cookies, remove the cookie too (force path to root)
+if (ini_get('session.use_cookies')) {
+    $params = session_get_cookie_params();
+    $cookieParamsPath = '/';
+    $cookieParamsDomain = $params['domain'] ?? '';
+    $cookieParamsSecure = !empty($params['secure']);
+    $cookieParamsHttpOnly = !empty($params['httponly']);
+    setcookie(session_name(), '', time() - 42000, $cookieParamsPath, $cookieParamsDomain, $cookieParamsSecure, $cookieParamsHttpOnly);
+}
+
+// Best-effort clear of any remaining cookies (root path)
+if (!headers_sent() && !empty($_COOKIE)) {
+    foreach ($_COOKIE as $cookieName => $cookieValue) {
+        setcookie($cookieName, '', time() - 42000, '/');
+    }
+}
+
+// Finally, destroy the session
+session_destroy();
+session_write_close();
+
+// Redirect to app root
+header('Location: /tebzcopy/');
+exit;
+?>

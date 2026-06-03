@@ -1,0 +1,1029 @@
+<?php
+// Prevent any output before JSON response
+error_reporting(0);
+ini_set('display_errors', 0);
+ob_start();
+
+// Start session and include database configuration
+session_start();
+require_once __DIR__ . '/../db_config.php';
+
+// Check and modify foreign key constraints
+try {
+    // Check if payment_details table exists
+    $checkTableSQL = "SHOW TABLES LIKE 'payment_details'";
+    $tableExists = $conn->query($checkTableSQL)->num_rows > 0;
+    
+    if ($tableExists) {
+        // Get the foreign key constraint name
+        $getConstraintSQL = "SELECT CONSTRAINT_NAME 
+                            FROM information_schema.TABLE_CONSTRAINTS 
+                            WHERE TABLE_SCHEMA = DATABASE() 
+                            AND TABLE_NAME = 'payment_details' 
+                            AND CONSTRAINT_TYPE = 'FOREIGN KEY'";
+        $constraintResult = $conn->query($getConstraintSQL);
+        
+        if ($constraintResult && $constraintResult->num_rows > 0) {
+            $constraint = $constraintResult->fetch_assoc();
+            $constraintName = $constraint['CONSTRAINT_NAME'];
+            
+            // Drop the existing foreign key constraint
+            $dropConstraintSQL = "ALTER TABLE payment_details DROP FOREIGN KEY " . $constraintName;
+            $conn->query($dropConstraintSQL);
+            
+            // Add the foreign key constraint with ON DELETE CASCADE
+            $addConstraintSQL = "ALTER TABLE payment_details 
+                                ADD CONSTRAINT " . $constraintName . " 
+                                FOREIGN KEY (receipt_number) 
+                                REFERENCES membership_payments(receipt_number) 
+                                ON DELETE CASCADE 
+                                ON UPDATE CASCADE";
+            $conn->query($addConstraintSQL);
+        }
+    }
+} catch (Exception $e) {
+    // Log the error but continue execution
+    error_log("Error modifying foreign key constraint: " . $e->getMessage());
+}
+
+// Create or update membership_payments table with confirmed_at column
+$createTableSQL = "CREATE TABLE IF NOT EXISTS membership_payments (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    method VARCHAR(50) NOT NULL,
+    payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(20) DEFAULT 'Pending',
+    receipt_number VARCHAR(50),
+    confirmed_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+)";
+
+try {
+    $conn->query($createTableSQL);
+    
+    // Add confirmed_at column if it doesn't exist
+    $checkColumnSQL = "SHOW COLUMNS FROM membership_payments LIKE 'confirmed_at'";
+    $result = $conn->query($checkColumnSQL);
+    if ($result->num_rows === 0) {
+        $addColumnSQL = "ALTER TABLE membership_payments ADD COLUMN confirmed_at TIMESTAMP NULL AFTER receipt_number";
+        $conn->query($addColumnSQL);
+    }
+} catch (Exception $e) {
+    if ($isAjax) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'message' => 'Database initialization error']);
+        exit();
+    }
+}
+
+// Check if this is an AJAX request
+$isAjax = isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
+
+// Handle AJAX requests
+if ($isAjax) {
+    header('Content-Type: application/json');
+    
+    if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'treasurer') {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'message' => 'Unauthorized access']);
+        exit();
+    }
+}
+
+// Handle payment confirmation
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['confirm_payment'])) {
+    // Clear any previous output
+    ob_clean();
+    
+    // Set proper JSON header
+    header('Content-Type: application/json');
+    
+    $paymentId = intval($_POST['payment_id']);
+    
+    // Start transaction
+    $conn->begin_transaction();
+    
+    try {
+        // Get user information and payment details
+        $userQuery = "SELECT p.*, u.id as user_id, u.firstName, u.lastName, u.userType, u.email 
+                     FROM membership_payments p 
+                     JOIN users u ON p.user_id = u.id 
+                     WHERE p.id = ?";
+        $userStmt = $conn->prepare($userQuery);
+        if (!$userStmt) {
+            throw new Exception('Database error: ' . $conn->error);
+        }
+        
+        $userStmt->bind_param('i', $paymentId);
+        if (!$userStmt->execute()) {
+            throw new Exception('Failed to execute query: ' . $userStmt->error);
+        }
+        
+        $userResult = $userStmt->get_result();
+        $paymentInfo = $userResult->fetch_assoc();
+
+        if (!$paymentInfo) {
+            throw new Exception('Payment not found');
+        }
+
+        // Check if payment is already confirmed
+        if ($paymentInfo['status'] === 'Confirmed') {
+            throw new Exception('Payment is already confirmed');
+        }
+
+        // Only generate receipt number for members (not drivers or operators)
+        $receiptNumber = null;
+        if ($paymentInfo['userType'] === 'member') {
+            $receiptNumber = 'TEBZ-' . date('Ymd') . '-' . str_pad($paymentId, 4, '0', STR_PAD_LEFT) . '-' . strtoupper(substr(md5(uniqid()), 0, 4));
+        }
+
+        // Only handle payment_details for members
+        if ($paymentInfo['userType'] === 'member' && $receiptNumber !== null) {
+            $checkPaymentDetailsTable = "SHOW TABLES LIKE 'payment_details'";
+            $tableExists = $conn->query($checkPaymentDetailsTable)->num_rows > 0;
+            
+            if ($tableExists) {
+                // First, insert the new payment details record
+                $insertDetailsStmt = $conn->prepare("INSERT INTO payment_details (receipt_number) VALUES (?)");
+                if (!$insertDetailsStmt) {
+                    throw new Exception('Database error: ' . $conn->error);
+                }
+                
+                $insertDetailsStmt->bind_param('s', $receiptNumber);
+                if (!$insertDetailsStmt->execute()) {
+                    throw new Exception('Failed to insert payment details: ' . $insertDetailsStmt->error);
+                }
+
+                // Then update the membership_payments table
+                $updatePaymentStmt = $conn->prepare("UPDATE membership_payments SET status = 'Confirmed', receipt_number = ?, confirmed_at = CURRENT_TIMESTAMP WHERE id = ?");
+                if (!$updatePaymentStmt) {
+                    throw new Exception('Database error: ' . $conn->error);
+                }
+                
+                $updatePaymentStmt->bind_param('si', $receiptNumber, $paymentId);
+                if (!$updatePaymentStmt->execute()) {
+                    // If update fails, delete the payment details record we just inserted
+                    $deleteDetailsStmt = $conn->prepare("DELETE FROM payment_details WHERE receipt_number = ?");
+                    $deleteDetailsStmt->bind_param('s', $receiptNumber);
+                    $deleteDetailsStmt->execute();
+                    throw new Exception('Failed to update payment: ' . $updatePaymentStmt->error);
+                }
+            }
+        } else {
+            // For non-members, just update the membership_payments table
+            $updatePaymentStmt = $conn->prepare("UPDATE membership_payments SET status = 'Confirmed', confirmed_at = CURRENT_TIMESTAMP WHERE id = ?");
+            if (!$updatePaymentStmt) {
+                throw new Exception('Database error: ' . $conn->error);
+            }
+            
+            $updatePaymentStmt->bind_param('i', $paymentId);
+            if (!$updatePaymentStmt->execute()) {
+                throw new Exception('Failed to update payment: ' . $updatePaymentStmt->error);
+            }
+        }
+
+        // Store receipt in user_receipts table only for members
+        if ($paymentInfo['userType'] === 'member' && $receiptNumber !== null) {
+            $insertReceiptStmt = $conn->prepare("
+                INSERT INTO user_receipts (
+                    user_id, payment_id, receipt_number, amount, payment_method, 
+                    payment_date, status, confirmed_by, confirmed_at, 
+                    member_name, member_type, member_email
+                )
+                VALUES (?, ?, ?, ?, ?, ?, 'Confirmed', ?, CURRENT_TIMESTAMP, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE
+                receipt_number = VALUES(receipt_number),
+                amount = VALUES(amount),
+                payment_method = VALUES(payment_method),
+                payment_date = VALUES(payment_date),
+                status = VALUES(status),
+                confirmed_by = VALUES(confirmed_by),
+                confirmed_at = VALUES(confirmed_at),
+                member_name = VALUES(member_name),
+                member_type = VALUES(member_type),
+                member_email = VALUES(member_email)
+            ");
+            
+            if (!$insertReceiptStmt) {
+                throw new Exception('Database error: ' . $conn->error);
+            }
+            
+            $paymentMethod = $paymentInfo['method'] ?? 'cash';
+            $paymentDate = $paymentInfo['payment_date'] ?? date('Y-m-d H:i:s');
+            $confirmedBy = $_SESSION['user_id'];
+            $memberName = $paymentInfo['firstName'] . ' ' . $paymentInfo['lastName'];
+            $memberType = $paymentInfo['userType'];
+            $memberEmail = $paymentInfo['email'];
+            
+            $insertReceiptStmt->bind_param('iissssiss', 
+                $paymentInfo['user_id'],
+                $paymentId,
+                $receiptNumber,
+                $paymentInfo['amount'],
+                $paymentMethod,
+                $paymentDate,
+                $confirmedBy,
+                $memberName,
+                $memberType,
+                $memberEmail
+            );
+            
+            if (!$insertReceiptStmt->execute()) {
+                throw new Exception('Failed to store receipt: ' . $insertReceiptStmt->error);
+            }
+        }
+
+        // Store user info in session for congratulations message
+        $_SESSION['payment_confirmed'] = true;
+        $_SESSION['confirmed_user'] = [
+            'id' => $paymentInfo['user_id'],
+            'firstName' => $paymentInfo['firstName'],
+            'lastName' => $paymentInfo['lastName'],
+            'userType' => $paymentInfo['userType'],
+            'email' => $paymentInfo['email'],
+            'receipt_number' => $receiptNumber
+        ];
+
+        // Commit transaction
+        $conn->commit();
+        
+        // Set success message
+        $_SESSION['message'] = 'Payment confirmed successfully!';
+        
+        // Return JSON response
+        echo json_encode([
+            'success' => true, 
+            'message' => 'Payment confirmed successfully',
+            'receipt_number' => $receiptNumber,
+            'payment_id' => $paymentId,
+            'user' => [
+                'name' => $paymentInfo['firstName'] . ' ' . $paymentInfo['lastName'],
+                'type' => $paymentInfo['userType'],
+                'email' => $paymentInfo['email']
+            ]
+        ]);
+        exit();
+        
+    } catch (Exception $e) {
+        // Rollback transaction on error
+        $conn->rollback();
+        
+        // Return JSON error response
+        http_response_code(400);
+        echo json_encode([
+            'success' => false, 
+            'message' => $e->getMessage()
+        ]);
+        exit();
+    }
+}
+
+// Regular page access check
+if (!$isAjax && (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'treasurer')) {
+    header("Location: ../shared/index.php");
+    exit();
+}
+
+// Create treasurer_payment_details table if it doesn't exist
+$createTableSQL = "CREATE TABLE IF NOT EXISTS treasurer_payment_details (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    treasurer_id INT NOT NULL,
+    gcash_number VARCHAR(11) NOT NULL,
+    gcash_name VARCHAR(100) NOT NULL,
+    bank_name VARCHAR(100),
+    bank_account VARCHAR(50),
+    bank_account_name VARCHAR(100),
+    office_address TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (treasurer_id) REFERENCES users(id) ON DELETE CASCADE
+)";
+
+try {
+    $conn->query($createTableSQL);
+} catch (Exception $e) {
+    if ($isAjax) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'message' => 'Database initialization error']);
+        exit();
+    }
+}
+
+// Handle AJAX request for viewing receipt
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['action'] === 'view_receipt') {
+    $paymentId = intval($_GET['payment_id']);
+    
+    try {
+        // Get payment details
+        $stmt = $conn->prepare("
+            SELECT p.*, u.firstName, u.lastName, u.email 
+            FROM membership_payments p
+            JOIN users u ON p.user_id = u.id
+            WHERE p.id = ?
+        ");
+        $stmt->bind_param('i', $paymentId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $payment = $result->fetch_assoc();
+
+        if (!$payment) {
+            throw new Exception('Payment not found');
+        }
+
+        // Generate HTML receipt
+        $html = "
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Receipt - {$payment['receipt_number']}</title>
+            <script src='https://cdn.tailwindcss.com'></script>
+            <style>
+                @media print {
+                    .no-print { display: none; }
+                    body { margin: 0; }
+                }
+                .watermark {
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%) rotate(-45deg);
+                    font-size: 100px;
+                    color: rgba(0, 0, 0, 0.03);
+                    white-space: nowrap;
+                    pointer-events: none;
+                    z-index: -1;
+                }
+            </style>
+        </head>
+        <body class='bg-gray-50 min-h-screen p-8'>
+            <div class='watermark'>JeepniGo</div>
+            <div class='max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-8'>
+                <!-- Header -->
+                <div class='text-center mb-8'>
+                    <div class='flex justify-center mb-4'>
+                        <img src='../img/logo12.png' alt='JeepniGo Logo' class='h-20 w-auto'>
+                    </div>
+                    <h1 class='text-3xl font-bold text-blue-600 mb-2'>JeepniGo</h1>
+                    <h2 class='text-xl text-gray-600'>Official Receipt</h2>
+                    <div class='mt-2 text-sm text-gray-500'>" . date('F j, Y', strtotime($payment['payment_date'])) . "</div>
+                </div>
+
+                <!-- Receipt Number -->
+                <div class='mb-6 p-4 bg-gray-50 rounded-lg'>
+                    <div class='text-sm text-gray-600'>Receipt Number</div>
+                    <div class='text-lg font-mono font-semibold text-gray-800'>{$payment['receipt_number']}</div>
+                </div>
+
+                <!-- Payment Details -->
+                <div class='space-y-4 mb-8'>
+                    <div class='grid grid-cols-2 gap-4'>
+                        <div class='p-4 bg-gray-50 rounded-lg'>
+                            <div class='text-sm text-gray-600'>Member Name</div>
+                            <div class='font-semibold text-gray-800'>{$payment['firstName']} {$payment['lastName']}</div>
+                        </div>
+                        <div class='p-4 bg-gray-50 rounded-lg'>
+                            <div class='text-sm text-gray-600'>Amount</div>
+                            <div class='font-semibold text-gray-800'>₱" . number_format($payment['amount'], 2) . "</div>
+                        </div>
+                    </div>
+                    <div class='grid grid-cols-2 gap-4'>
+                        <div class='p-4 bg-gray-50 rounded-lg'>
+                            <div class='text-sm text-gray-600'>Payment Method</div>
+                            <div class='font-semibold text-gray-800'>" . ucfirst($payment['method']) . "</div>
+                        </div>
+                        <div class='p-4 bg-gray-50 rounded-lg'>
+                            <div class='text-sm text-gray-600'>Status</div>
+                            <div class='font-semibold text-green-600'>" . ucfirst($payment['status']) . "</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Signature Lines -->
+                <div class='grid grid-cols-2 gap-8 mt-8 mb-8'>
+                    <div class='text-center'>
+                        <div class='border-t border-gray-300 pt-2 mb-1'></div>
+                        <div class='text-sm text-gray-600'>Treasurer's Signature</div>
+                    </div>
+                    <div class='text-center'>
+                        <div class='border-t border-gray-300 pt-2 mb-1'></div>
+                        <div class='text-sm text-gray-600'>Member's Signature</div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class='text-center text-sm text-gray-500 mt-8'>
+                    <p>Thank you for your payment!</p>
+                    <p class='mt-1'>This receipt serves as proof of your payment to JeepniGo.</p>
+                </div>
+
+                <!-- Print Button -->
+                <div class='no-print text-center mt-8'>
+                    <button onclick='window.print()' class='px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200'>
+                        Print Receipt
+                    </button>
+                </div>
+            </div>
+        </body>
+        </html>";
+
+        echo $html;
+        exit();
+    } catch (Exception $e) {
+        echo "Error: " . $e->getMessage();
+        exit();
+    }
+}
+
+// Get all payments with user details
+$query = "SELECT p.*, u.firstName, u.lastName, u.userType 
+          FROM membership_payments p
+          JOIN users u ON p.user_id = u.id
+          ORDER BY p.payment_date DESC";
+$result = $conn->query($query);
+
+$userFirstName = $_SESSION['user_firstName'] ?? '';
+$userLastName = $_SESSION['user_lastName'] ?? '';
+
+?>
+<?php if (isset($_SESSION['payment_confirmed']) && isset($_SESSION['confirmed_user'])): ?>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+Swal.fire({
+    title: '🎉 Congratulations!',
+    text: '<?= htmlspecialchars($_SESSION['confirmed_user']['firstName'] . ' ' . $_SESSION['confirmed_user']['lastName']) ?> is now officially registered as a <?= htmlspecialchars($_SESSION['confirmed_user']['userType']) ?>!',
+    icon: 'success',
+    confirmButtonText: 'Awesome!',
+    confirmButtonColor: '#28a745',
+    backdrop: `
+        rgba(0,0,0,0.7)
+        url("/tebz/img/confetti.gif")
+        center top
+        no-repeat
+    `
+});
+</script>
+<?php 
+unset($_SESSION['payment_confirmed']);
+unset($_SESSION['confirmed_user']);
+?>
+<?php endif; ?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Treasurer Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <style>
+        @keyframes slideIn {
+            from { transform: translateX(-100%); }
+            to { transform: translateX(0); }
+        }
+        .animate-slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+        .hover-scale {
+            transition: transform 0.2s ease-in-out;
+        }
+        .hover-scale:hover {
+            transform: scale(1.02);
+        }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-50 min-h-screen">
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <nav class="w-64 bg-gradient-to-b from-blue-600 to-blue-800 text-white p-6 shadow-xl transform transition-transform duration-300 hover:translate-x-0">
+            <div class="flex items-center space-x-3 mb-8 p-4 rounded-lg bg-white/10 hover:bg-white/20 transition-colors duration-200">
+                <i class="bi bi-cash-coin text-2xl"></i>
+                <span class="text-lg font-semibold"><?= htmlspecialchars($userFirstName . ' ' . $userLastName); ?></span>
+            </div>
+
+            <ul class="space-y-2">
+                <li>
+                    <a href="treasurer_dashboard.php" class="flex items-center space-x-3 px-4 py-3 rounded-lg <?= ($page === 'payments') ? 'bg-white text-blue-800 shadow-lg' : 'hover:bg-white/20' ?> transition-all duration-200">
+                        <i class="bi bi-wallet2"></i>
+                        <span>Payments</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="treasurer_dashboard.php?page=payment_details" class="flex items-center space-x-3 px-4 py-3 rounded-lg <?= ($page === 'payment_details') ? 'bg-white text-blue-800 shadow-lg' : 'hover:bg-white/20' ?> transition-all duration-200">
+                        <i class="bi bi-credit-card"></i>
+                        <span>Payment Details</span>
+                    </a>
+                </li>
+                <li class="pt-4">
+                    <a href="../logout.php" class="flex items-center space-x-3 px-4 py-3 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-all duration-200">
+                        <i class="bi bi-box-arrow-left"></i>
+                        <span>Logout</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Main content -->
+        <div class="flex-1 overflow-auto">
+            <!-- Topbar -->
+            <div class="glass-effect shadow-sm px-8 py-4 flex justify-between items-center sticky top-0 z-10">
+                <h1 class="text-xl font-bold text-gray-800 flex items-center">
+                    <i class="bi bi-speedometer2 mr-2 text-blue-600"></i>
+                    Treasurer Dashboard
+                </h1>
+                <span class="text-gray-600 bg-white/50 px-4 py-2 rounded-full text-sm">Logged in as Treasurer</span>
+            </div>
+
+            <div class="p-8">
+                <?php if (isset($_SESSION['message'])): ?>
+                    <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded-lg shadow-sm animate-slide-in" role="alert">
+                        <?= $_SESSION['message']; ?>
+                    </div>
+                    <?php unset($_SESSION['message']); ?>
+                <?php endif; ?>
+
+                <?php if (isset($_SESSION['error'])): ?>
+                    <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded-lg shadow-sm animate-slide-in" role="alert">
+                        <?= $_SESSION['error']; ?>
+                    </div>
+                    <?php unset($_SESSION['error']); ?>
+                <?php endif; ?>
+
+                <?php
+                $page = $_GET['page'] ?? 'payments';
+                
+                if ($page === 'payments'):
+                ?>
+                <div class="bg-white rounded-xl shadow-lg hover-scale">
+                    <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                        <h2 class="text-lg font-semibold text-gray-800 flex items-center">
+                            <i class="bi bi-currency-exchange mr-2 text-blue-600"></i>
+                            Membership Payments
+                        </h2>
+                        <button onclick="exportToExcel()" class="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors duration-200 flex items-center">
+                            <i class="bi bi-file-excel mr-2"></i>
+                            Export
+                        </button>
+                    </div>
+                    <div class="p-6">
+                        <div class="overflow-x-auto">
+                            <?php
+                            // Check if the result has the required columns
+                            $requiredColumns = ['firstName', 'lastName', 'userType', 'amount', 'method', 'payment_date', 'status', 'id', 'receipt_number'];
+                            $hasAllColumns = true;
+                            if ($result && $result->num_rows > 0) {
+                                $firstRow = $result->fetch_assoc();
+                                foreach ($requiredColumns as $column) {
+                                    if (!array_key_exists($column, $firstRow)) {
+                                        $hasAllColumns = false;
+                                        break;
+                                    }
+                                }
+                                // Reset the result pointer
+                                $result->data_seek(0);
+                            }
+                            ?>
+                            <table id="paymentsTable" class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Member</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <?php if ($result && $result->num_rows > 0 && $hasAllColumns): ?>
+                                        <?php while ($row = $result->fetch_assoc()): ?>
+                                            <tr class="hover:bg-gray-50 transition-colors duration-150">
+                                                <td class="px-6 py-4">
+                                                    <div class="text-sm font-medium text-gray-900">
+                                                        <?= htmlspecialchars($row['firstName'] . ' ' . $row['lastName']); ?>
+                                                    </div>
+                                                </td>
+                                                <td class="px-6 py-4 text-sm text-gray-500">
+                                                    <?= ucfirst($row['userType']); ?>
+                                                </td>
+                                                <td class="px-6 py-4 text-sm text-gray-900">
+                                                    ₱<?= number_format($row['amount'], 2); ?>
+                                                </td>
+                                                <td class="px-6 py-4">
+                                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full <?= $row['method'] === 'gcash' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' ?>">
+                                                        <?= ucfirst($row['method']); ?>
+                                                    </span>
+                                                </td>
+                                                <td class="px-6 py-4 text-sm text-gray-500">
+                                                    <?= date('M d, Y h:i A', strtotime($row['payment_date'])); ?>
+                                                </td>
+                                                <td class="px-6 py-4">
+                                                    <?php if ($row['status'] === 'Confirmed'): ?>
+                                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                            Confirmed
+                                                        </span>
+                                                    <?php else: ?>
+                                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                                            Pending
+                                                        </span>
+                                                    <?php endif; ?>
+                                                </td>
+                                                <td class="px-6 py-4 text-sm">
+                                                    <?php if ($row['status'] !== 'Confirmed'): ?>
+                                                        <form method="POST" class="inline" id="confirmForm_<?= $row['id']; ?>">
+                                                            <input type="hidden" name="payment_id" value="<?= $row['id']; ?>">
+                                                            <button type="button" 
+                                                                    onclick="confirmPayment(<?= $row['id']; ?>)"
+                                                                    class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200">
+                                                                <i class="bi bi-check-circle mr-2"></i>
+                                                                Accept Payment
+                                                            </button>
+                                                        </form>
+                                                    <?php else: ?>
+                                                        <div class="flex items-center gap-2">
+                                                            <i class="bi bi-check2-circle text-green-500 text-xl"></i>
+                                                            <?php if (!empty($row['receipt_number'])): ?>
+                                                                <span class="px-2 py-1 bg-gray-100 rounded text-sm font-mono">
+                                                                    <?= htmlspecialchars($row['receipt_number']); ?>
+                                                                </span>
+                                                                <button onclick="viewReceipt(<?= $row['id']; ?>)" 
+                                                                        class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200">
+                                                                    <i class="bi bi-eye mr-2"></i>
+                                                                    View Receipt
+                                                                </button>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                </td>
+                                            </tr>
+                                        <?php endwhile; ?>
+                                    <?php else: ?>
+                                        <tr>
+                                            <td class="px-6 py-4 text-sm text-gray-500">-</td>
+                                            <td class="px-6 py-4 text-sm text-gray-500">-</td>
+                                            <td class="px-6 py-4 text-sm text-gray-500">-</td>
+                                            <td class="px-6 py-4 text-sm text-gray-500">-</td>
+                                            <td class="px-6 py-4 text-sm text-gray-500">-</td>
+                                            <td class="px-6 py-4 text-sm text-gray-500">-</td>
+                                            <td class="px-6 py-4 text-sm text-gray-500">
+                                                <?php if (!$hasAllColumns): ?>
+                                                    Error: Some required data is missing. Please contact the administrator.
+                                                <?php else: ?>
+                                                    No payments found.
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <?php elseif ($page === 'payment_details'): ?>
+                    <div class="bg-white rounded-lg shadow-sm hover-scale">
+                        <div class="px-6 py-4 border-b border-gray-200">
+                            <h2 class="text-lg font-semibold text-gray-800 flex items-center">
+                                <i class="bi bi-credit-card mr-2 text-blue-600"></i>
+                                Payment Details Management
+                            </h2>
+                        </div>
+                        <div class="p-6">
+                            <form action="update_payment_details.php" method="POST" class="space-y-6">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div class="transform transition-all duration-300 hover:scale-[1.02]">
+                                        <label for="gcash_number" class="block text-sm font-medium text-gray-700 mb-1">GCash Number</label>
+                                        <input type="text" id="gcash_number" name="gcash_number" 
+                                               value="<?= htmlspecialchars($details['gcash_number'] ?? ''); ?>"
+                                               pattern="[0-9]{11}" required
+                                               class="mt-1 block w-full px-4 py-3 rounded-lg border-2 border-gray-300 bg-white text-gray-900 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 hover:border-blue-400">
+                                        <p class="mt-2 text-sm text-gray-500">Enter your 11-digit GCash number</p>
+                                    </div>
+
+                                    <div class="transform transition-all duration-300 hover:scale-[1.02]">
+                                        <label for="gcash_name" class="block text-sm font-medium text-gray-700 mb-1">GCash Account Name</label>
+                                        <input type="text" id="gcash_name" name="gcash_name" 
+                                               value="<?= htmlspecialchars($details['gcash_name'] ?? ''); ?>" required
+                                               class="mt-1 block w-full px-4 py-3 rounded-lg border-2 border-gray-300 bg-white text-gray-900 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 hover:border-blue-400">
+                                    </div>
+
+                                    <div class="transform transition-all duration-300 hover:scale-[1.02]">
+                                        <label for="bank_name" class="block text-sm font-medium text-gray-700 mb-1">Bank Name</label>
+                                        <input type="text" id="bank_name" name="bank_name" 
+                                               value="<?= htmlspecialchars($details['bank_name'] ?? ''); ?>"
+                                               class="mt-1 block w-full px-4 py-3 rounded-lg border-2 border-gray-300 bg-white text-gray-900 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 hover:border-blue-400">
+                                    </div>
+
+                                    <div class="transform transition-all duration-300 hover:scale-[1.02]">
+                                        <label for="bank_account" class="block text-sm font-medium text-gray-700 mb-1">Bank Account Number</label>
+                                        <input type="text" id="bank_account" name="bank_account" 
+                                               value="<?= htmlspecialchars($details['bank_account'] ?? ''); ?>"
+                                               class="mt-1 block w-full px-4 py-3 rounded-lg border-2 border-gray-300 bg-white text-gray-900 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 hover:border-blue-400">
+                                    </div>
+
+                                    <div class="transform transition-all duration-300 hover:scale-[1.02]">
+                                        <label for="bank_account_name" class="block text-sm font-medium text-gray-700 mb-1">Bank Account Name</label>
+                                        <input type="text" id="bank_account_name" name="bank_account_name" 
+                                               value="<?= htmlspecialchars($details['bank_account_name'] ?? ''); ?>"
+                                               class="mt-1 block w-full px-4 py-3 rounded-lg border-2 border-gray-300 bg-white text-gray-900 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 hover:border-blue-400">
+                                    </div>
+
+                                    <div class="transform transition-all duration-300 hover:scale-[1.02]">
+                                        <label for="office_address" class="block text-sm font-medium text-gray-700 mb-1">Office Address (for Cash Payments)</label>
+                                        <textarea id="office_address" name="office_address" rows="2"
+                                                  class="mt-1 block w-full px-4 py-3 rounded-lg border-2 border-gray-300 bg-white text-gray-900 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 hover:border-blue-400"><?= htmlspecialchars($details['office_address'] ?? ''); ?></textarea>
+                                    </div>
+                                </div>
+
+                                <div class="flex justify-end">
+                                    <button type="submit" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-sm transition-all duration-300 transform hover:scale-105">
+                                        <i class="bi bi-save mr-2"></i>
+                                        Save Payment Details
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                <?php endif; ?>
+            </div>
+
+            <!-- Footer -->
+            <footer class="text-center py-4 text-sm text-gray-500 glass-effect">
+                &copy; <?= date('Y'); ?> JeepniGo Treasurer Panel
+            </footer>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        $(document).ready(function () {
+            $('#paymentsTable').DataTable({
+                order: [[4, 'desc']],
+                pageLength: 10,
+                language: {
+                    search: "Search payments:",
+                    emptyTable: "No payments found. New payments will appear here when members submit their registration fees.",
+                    zeroRecords: "No matching payments found."
+                },
+                autoWidth: false,
+                responsive: true,
+                destroy: true,
+                retrieve: true,
+                dom: '<"flex justify-between items-center mb-4"lf>rt<"flex justify-between items-center mt-4"ip>',
+                lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "All"]],
+                initComplete: function() {
+                    // Style the search box
+                    $('.dataTables_filter input').addClass('px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500');
+                    $('.dataTables_filter label').addClass('text-gray-700 font-medium');
+                    
+                    // Add hover effect to table rows
+                    $('.dataTables_wrapper tbody tr').hover(
+                        function() { $(this).addClass('bg-gray-50'); },
+                        function() { $(this).removeClass('bg-gray-50'); }
+                    );
+                }
+            });
+
+            // Enhanced payment confirmation handling
+            $('form').on('submit', function(e) {
+                if ($(this).find('button[name="confirm_payment"]').length) {
+                    e.preventDefault();
+                    const form = this;
+                    
+                    Swal.fire({
+                        title: 'Confirm Payment',
+                        html: `
+                            <div class="text-left">
+                                <p class="mb-4">Are you sure you want to confirm this payment?</p>
+                                <div class="bg-gray-50 p-4 rounded-lg">
+                                    <p class="text-sm text-gray-600">This action will:</p>
+                                    <ul class="list-disc list-inside text-sm text-gray-600 mt-2">
+                                        <li>Generate a unique receipt number</li>
+                                        <li>Update the payment status to confirmed</li>
+                                        <li>Store the receipt details in the system</li>
+                                        <li>Send a confirmation to the member</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        `,
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonText: 'Yes, confirm payment',
+                        cancelButtonText: 'Cancel',
+                        confirmButtonColor: '#198754',
+                        allowOutsideClick: false,
+                        allowEscapeKey: false,
+                        allowEnterKey: false,
+                        customClass: {
+                            container: 'my-swal'
+                        }
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            // Show loading state with better animation
+                            Swal.fire({
+                                title: 'Processing Payment',
+                                html: `
+                                    <div class="flex flex-col items-center">
+                                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+                                        <p class="text-gray-600">Please wait while we confirm the payment...</p>
+                                    </div>
+                                `,
+                                allowOutsideClick: false,
+                                allowEscapeKey: false,
+                                allowEnterKey: false,
+                                showConfirmButton: false
+                            });
+                            
+                            // Submit the form using fetch
+                            const formData = new FormData(form);
+                            fetch('treasurer_dashboard.php', {
+                                method: 'POST',
+                                body: formData,
+                                headers: {
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                }
+                            })
+                            .then(response => {
+                                if (!response.ok) {
+                                    return response.json().then(data => {
+                                        throw new Error(data.message || 'Network response was not ok');
+                                    });
+                                }
+                                return response.json();
+                            })
+                            .then(data => {
+                                if (data.success) {
+                                    // Show success message with receipt details
+                                    Swal.fire({
+                                        icon: 'success',
+                                        title: 'Payment Confirmed!',
+                                        html: `
+                                            <div class="text-left">
+                                                <p class="mb-4">The payment has been successfully confirmed.</p>
+                                                <div class="bg-green-50 p-4 rounded-lg">
+                                                    <p class="text-sm font-medium text-green-800">Receipt Details:</p>
+                                                    <p class="text-sm text-green-600 mt-2">Receipt Number: ${data.receipt_number}</p>
+                                                    <p class="text-sm text-green-600">Member: ${data.user.name}</p>
+                                                    <p class="text-sm text-green-600">Type: ${data.user.type}</p>
+                                                </div>
+                                            </div>
+                                        `,
+                                        confirmButtonText: 'View Receipt',
+                                        confirmButtonColor: '#198754',
+                                        showCancelButton: true,
+                                        cancelButtonText: 'Close'
+                                    }).then((result) => {
+                                        if (result.isConfirmed) {
+                                            viewReceipt(data.payment_id);
+                                        } else {
+                                            window.location.reload();
+                                        }
+                                    });
+                                } else {
+                                    throw new Error(data.message || 'Failed to confirm payment');
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Error',
+                                    text: error.message || 'Failed to confirm payment. Please try again.',
+                                    confirmButtonColor: '#dc2626'
+                                });
+                            });
+                        }
+                    });
+                }
+            });
+        });
+
+        function exportToExcel() {
+            alert('Export to Excel functionality will be implemented here.');
+        }
+
+        // Enhanced receipt viewing function
+        function viewReceipt(paymentId) {
+            window.open(`treasurer_dashboard.php?action=view_receipt&payment_id=${paymentId}`, '_blank', 'width=800,height=600');
+        }
+
+        // Add this function at the beginning of your script section
+        function confirmPayment(paymentId) {
+            Swal.fire({
+                title: 'Accept Payment',
+                html: `
+                    <div class="text-left">
+                        <p class="mb-4">Are you sure you want to accept this payment?</p>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <p class="text-sm text-gray-600">This action will:</p>
+                            <ul class="list-disc list-inside text-sm text-gray-600 mt-2">
+                                <li>Update the payment status to confirmed</li>
+                                <li>Store the payment details in the system</li>
+                            </ul>
+                        </div>
+                    </div>
+                `,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, accept payment',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#198754',
+                allowOutsideClick: false,
+                allowEscapeKey: false
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Show loading state
+                    Swal.fire({
+                        title: 'Processing Payment',
+                        html: `
+                            <div class="flex flex-col items-center">
+                                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+                                <p class="text-gray-600">Please wait while we process the payment...</p>
+                            </div>
+                        `,
+                        allowOutsideClick: false,
+                        allowEscapeKey: false,
+                        showConfirmButton: false
+                    });
+                    
+                    // Submit the form
+                    const form = document.getElementById('confirmForm_' + paymentId);
+                    const formData = new FormData(form);
+                    formData.append('confirm_payment', '1');
+
+                    fetch('treasurer_dashboard.php', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.json().then(data => {
+                                throw new Error(data.message || 'Network response was not ok');
+                            });
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Payment Confirmed!',
+                                html: `
+                                    <div class="text-left">
+                                        <p class="mb-4">The payment has been successfully confirmed.</p>
+                                        <div class="bg-green-50 p-4 rounded-lg">
+                                            <p class="text-sm font-medium text-green-800">Receipt Details:</p>
+                                            <p class="text-sm text-green-600 mt-2">Receipt Number: ${data.receipt_number}</p>
+                                            <p class="text-sm text-green-600">Member: ${data.user.name}</p>
+                                            <p class="text-sm text-green-600">Type: ${data.user.type}</p>
+                                        </div>
+                                    </div>
+                                `,
+                                confirmButtonText: 'View Receipt',
+                                confirmButtonColor: '#198754',
+                                showCancelButton: true,
+                                cancelButtonText: 'Close'
+                            }).then((result) => {
+                                if (result.isConfirmed) {
+                                    viewReceipt(data.payment_id);
+                                } else {
+                                    window.location.reload();
+                                }
+                            });
+                        } else {
+                            throw new Error(data.message || 'Failed to confirm payment');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: error.message || 'Failed to confirm payment. Please try again.',
+                            confirmButtonColor: '#dc2626'
+                        });
+                    });
+                }
+            });
+        }
+    </script>
+
+<!-- Mobile Responsive JavaScript -->
+<script src="../assets/js/mobile-responsive.js"></script>
+
+</body>
+</html>

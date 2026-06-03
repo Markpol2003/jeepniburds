@@ -1,0 +1,4 @@
+RewriteEngine On
+# Redirect old admin.php URL to the new admin_dashboard.php
+RewriteRule ^admin\.php$ admin_dashboard.php [R=301,L]
+

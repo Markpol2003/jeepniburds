@@ -1,0 +1,329 @@
+/* General Body Style */
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: #f4f6f9;
+    margin: 0;
+    padding: 0;
+}
+
+/* Navbar Styling */
+.navbar {
+    background-color: #2c3e50;
+    padding: 10px 20px;
+}
+
+.navbar-brand {
+    display: flex;
+    align-items: center;
+}
+
+.navbar-brand img {
+    height: 40px;
+    margin-right: 10px;
+}
+
+.navbar-brand span {
+    color: white;
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+
+.navbar-nav .nav-link {
+    color: white;
+    font-weight: 600;
+    transition: color 0.3s ease;
+}
+
+.navbar-nav .nav-link:hover {
+    color: #1abc9c;
+}
+
+/* Sidebar */
+.sidebar {
+    background: #34495e;
+    color: white;
+    min-height: 100vh;
+    padding: 20px 15px;
+    width: 250px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    overflow-y: auto;
+}
+
+.sidebar a {
+    color: #ffffff;
+    text-decoration: none;
+    display: block;
+    padding: 12px 15px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    transition: background-color 0.3s ease;
+}
+
+.sidebar a:hover,
+.sidebar a.active {
+    background-color: #1abc9c;
+}
+
+/* Main Content */
+.content {
+    margin-left: 250px; /* ✅ Must match .sidebar width */
+    padding: 30px;
+    background-color: #f4f6f9;
+    min-height: 100vh;
+}
+
+/* Content Wrapper */
+.content-wrapper {
+    margin-left: 220px;
+    width: 100%;
+}
+
+/* Profile Header */
+.profile-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.profile-header img {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    border: 4px solid #1abc9c;
+    object-fit: cover;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+.profile-header h3 {
+    margin-top: 15px;
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.profile-header p {
+    color: #7f8c8d;
+    font-size: 1.1rem;
+}
+
+/* Profile Details Card */
+.profile-details {
+    background-color: #ffffff;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.07);
+}
+
+/* Profile Table */
+.profile-details table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+.profile-details th, .profile-details td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #eaeaea;
+}
+
+.profile-details th {
+    color: #555;
+    font-weight: 600;
+}
+
+.profile-details td {
+    color: #2c3e50;
+}
+
+.profile-card {
+    background: linear-gradient(145deg, #ffffff, #f2f2f2);
+    border-radius: 15px;
+    transition: transform 0.3s ease;
+}
+
+.profile-card:hover {
+    transform: translateY(-4px);
+}
+
+.profile-avatar img {
+    border: 4px solid #1abc9c;
+    object-fit: cover;
+}
+
+/* Form Upload Section */
+.form-section {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.form-section input[type="file"] {
+    flex: 0 0 auto;
+}
+
+.form-section .upload-btn {
+    white-space: nowrap;
+}
+
+/* Button Styles */
+.btn-primary {
+    background-color: #3498db;
+    border: none;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    background-color: #2980b9;
+}
+
+.btn-success {
+    background-color: #1abc9c;
+    border: none;
+    transition: all 0.3s ease;
+}
+
+.btn-success:hover {
+    background-color: #16a085;
+}
+
+/* Table Styling */
+.table {
+    background-color: #ffffff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin: 0;
+}
+
+.table th {
+    background-color: #2980b9;
+    color: white;
+    padding: 12px 15px;
+    text-align: left;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.table td {
+    padding: 12px 15px;
+}
+
+.table tbody tr:hover {
+    background-color: #f1f1f1;
+}
+
+/* Responsive Enhancements */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 100%;
+        position: relative;
+        min-height: auto;
+    }
+    .content {
+        margin-left: 0;
+        padding: 20px;
+    }
+    /* Attend Orientation Button */
+.attend-orientation-btn {
+    background-color: #2980b9; /* Match your primary brand blue */
+    color: #fff;
+    font-size: 1.1rem;
+    font-weight: 600;
+    padding: 0.9rem 1.2rem;
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(41, 128, 185, 0.25);
+    transition: all 0.3s ease;
+    text-transform: capitalize;
+    letter-spacing: 0.3px;
+}
+
+.attend-orientation-btn:hover {
+    background-color: #2471a3; /* Slightly darker on hover */
+    box-shadow: 0 6px 18px rgba(41, 128, 185, 0.35);
+    transform: translateY(-2px);
+}
+
+.attend-orientation-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(41, 128, 185, 0.3);
+}
+}
+/* Button Styles */
+.btn-primary {
+    background-color: #3498db;
+    border: none;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    background-color: #2980b9;
+}
+
+.btn-success {
+    background-color: #1abc9c;
+    border: none;
+    transition: all 0.3s ease;
+}
+
+.btn-success:hover {
+    background-color: #16a085;
+}
+
+/* Animation for receipt area */
+@keyframes fadeInReceipt {
+    from { 
+        opacity: 0; 
+        transform: translateY(20px); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0); 
+    }
+}
+
+#receiptArea {
+    animation: fadeInReceipt 1s ease-in-out;
+}
+.modal-content {
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.modal-header {
+    background-color: #2d6a4f;
+    color: white;
+}
+
+.modal-body {
+    padding: 20px;
+    background-color: #f9fafb;
+}
+
+.custom-input {
+    border-radius: 10px;
+    border: 1px solid #ced4da;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.custom-btn {
+    background-color: #2d6a4f;
+    border-radius: 10px;
+    font-weight: bold;
+}
+
+.custom-btn:hover {
+    background-color: #1b4e37;
+}
+
+.modal-dialog-centered {
+    max-width: 600px;
+    margin: auto;
+}

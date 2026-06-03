@@ -1,0 +1,73 @@
+body {
+    background: url('jeep.jpg') no-repeat center center fixed;
+    background-size: cover;
+    height: 100vh;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    color: #333;
+}
+
+.navbar-brand img {
+    height: 30px;
+}
+
+/* Signup Section Styles */
+.signup-section {
+    min-height: 100vh; /* Full viewport height */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.signup-section h2 {
+    color: #333333; /* Dark grey heading */
+    margin-bottom: 30px;
+}
+
+.signup-section form {
+    max-width: 400px; /* Centered form width */
+    margin: 0 auto;
+    background-color: #ffffff; /* White form background */
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.1); /* Light shadow */
+}
+
+.signup-section form .form-group {
+    margin-bottom: 20px;
+}
+
+.signup-section form input[type="text"],
+.signup-section form input[type="email"],
+.signup-section form input[type="password"] {
+    border: 1px solid #ced4da; /* Light grey border */
+    padding: 10px;
+    border-radius: 4px;
+}
+
+.signup-section form button[type="submit"] {
+    background-color: #007bff; /* Primary blue button */
+    border: none;
+    padding: 12px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.signup-section form button[type="submit"]:hover {
+    background-color: #0056b3; /* Darker blue on hover */
+}
+
+.signup-section p {
+    margin-top: 20px;
+    font-size: 14px;
+    color: #666666; /* Grey text color */
+}
+
+.signup-section p a {
+    color: #007bff; /* Blue link color */
+}
+
+.signup-section p a:hover {
+    color: #0056b3; /* Darker blue on hover */
+}

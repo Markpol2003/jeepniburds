@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles */
+@layer components {
+  .glass-effect {
+    @apply bg-white/70 backdrop-blur-lg;
+  }
+  
+  .hover-scale {
+    @apply transition-transform duration-200 hover:scale-102;
+  }
+} 

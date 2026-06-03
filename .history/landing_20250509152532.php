@@ -1,0 +1,907 @@
+<?php
+session_start();
+require_once 'db_config.php';
+
+// Handle form submission
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    if (isset($_POST['action'])) {
+        if ($_POST['action'] == 'signup') {
+            // Sanitize inputs
+            $firstName = htmlspecialchars($_POST['firstName']);
+            $lastName = htmlspecialchars($_POST['lastName']);
+            $email = htmlspecialchars($_POST['email']);
+            $password = $_POST['password'];
+            $confirm_password = $_POST['confirm_password'];
+            $userType = 'passenger';  // default userType is passenger
+
+            // Validate inputs
+            if (empty($firstName) || empty($lastName) || empty($email) || empty($password)) {
+                echo json_encode(['status' => 'error', 'message' => 'Please fill out all required fields']);
+                exit();
+            }
+
+            // Validate email
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                echo json_encode(['status' => 'error', 'message' => 'Invalid email address']);
+                exit();
+            }
+
+            // Validate passwords
+            if ($password !== $confirm_password) {
+                echo json_encode(['status' => 'error', 'message' => 'Passwords do not match']);
+                exit();
+            }
+
+            try {
+                // Prepare the SQL query
+                $stmt = $conn->prepare("INSERT INTO users (email, password, firstName, lastName, userType) VALUES (?, ?, ?, ?, ?)");
+                $stmt->bind_param("sssss", $email, $password, $firstName, $lastName, $userType);
+
+                if ($stmt->execute()) {
+                    echo json_encode(['status' => 'success', 'message' => 'Account created successfully']);
+                } else {
+                    if ($conn->errno === 1062) {
+                        echo json_encode(['status' => 'error', 'message' => 'Email already exists']);
+                    } else {
+                        echo json_encode(['status' => 'error', 'message' => 'An unexpected error occurred']);
+                    }
+                }
+            } catch (Exception $e) {
+                echo json_encode(['status' => 'error', 'message' => 'An unexpected error occurred']);
+            }
+            exit();
+        } elseif ($_POST['action'] == 'login') {
+            $email = htmlspecialchars($_POST['email']);
+            $password = $_POST['password'];
+
+            if (empty($email) || empty($password)) {
+                echo json_encode(['status' => 'error', 'message' => 'Please fill out all fields']);
+                exit();
+            }
+
+            $stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
+            $stmt->bind_param("s", $email);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $user = $result->fetch_assoc();
+
+            if ($user) {
+                // Compare password directly (since no hashing)
+                if ($password === $user['password']) {
+                    session_regenerate_id(true); // Prevent session fixation attacks
+
+                    // Set session variables
+                    $_SESSION['user_id'] = $user['id'];
+                    $_SESSION['user_email'] = $user['email'];
+                    $_SESSION['user_firstName'] = $user['firstName'];
+                    $_SESSION['user_lastName'] = $user['lastName'];
+                    $_SESSION['user_type'] = $user['userType'];
+
+                    // Redirect based on user role
+                    $dashboardRoutes = [
+                        'passenger' => 'passenger_dashboard.php?page=dashboard',
+                        'driver'    => 'driver_dashboard.php',
+                        'operator'  => 'operator_dashboard.php',
+                        'manager'   => 'manager_dashboard.php',
+                        'admin'     => 'admin_dashboard.php',
+                        'treasurer' => 'treasurer_dashboard.php'
+                    ];
+
+                    $redirect = $dashboardRoutes[$user['userType']] ?? 'passenger_dashboard.php';
+
+                    echo json_encode([
+                        'status' => 'success',
+                        'message' => 'Login successful',
+                        'redirect' => $redirect
+                    ]);
+                } else {
+                    echo json_encode(['status' => 'error', 'message' => 'Invalid email or password']);
+                }
+            } else {
+                echo json_encode(['status' => 'error', 'message' => 'Invalid email or password']);
+            }
+
+            exit();
+        }
+    }
+}
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JeepniGo</title>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap and Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- SweetAlert2 -->
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css" rel="stylesheet">
+
+    <link href="assets/css/landing.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg fixed-top" style="
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        background-color: rgba(15, 23, 42, 0.95);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        padding: 1rem 0;
+        transition: all 0.3s ease;
+    ">
+        <div class="container" style="max-width: 1200px; padding: 0 2rem;">
+            <a class="navbar-brand d-flex align-items-center" href="#" style="transition: transform 0.3s ease;">
+                <img src="\tebz\img\logo12.png" alt="JeepniGo Logo" class="navbar-logo" style="width: 45px; height: auto; margin-right: 10px; transition: transform 0.3s ease;">
+                <span style="font-size: 1.5rem; font-weight: 600; color: white; transition: color 0.3s ease;">JeepniGo</span>
+            </a>
+            <button class="navbar-toggler border-0 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" style="transition: transform 0.3s ease;">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item mx-2">
+                        <a class="nav-link fw-medium" href="#features" style="
+                            color: white;
+                            transition: all 0.3s ease;
+                            position: relative;
+                            padding: 0.5rem 0;
+                        ">
+                            Features
+                            <span class="nav-link-underline" style="
+                                position: absolute;
+                                bottom: 0;
+                                left: 0;
+                                width: 0;
+                                height: 2px;
+                                background-color: #3b82f6;
+                                transition: width 0.3s ease;
+                            "></span>
+                        </a>
+                    </li>
+                    <li class="nav-item mx-2">
+                        <a class="nav-link fw-medium" href="#about" style="
+                            color: white;
+                            transition: all 0.3s ease;
+                            position: relative;
+                            padding: 0.5rem 0;
+                        ">
+                            About
+                            <span class="nav-link-underline" style="
+                                position: absolute;
+                                bottom: 0;
+                                left: 0;
+                                width: 0;
+                                height: 2px;
+                                background-color: #3b82f6;
+                                transition: width 0.3s ease;
+                            "></span>
+                        </a>
+                    </li>
+                    <li class="nav-item mx-2">
+                        <a class="nav-link fw-medium" href="#testimonials" style="
+                            color: white;
+                            transition: all 0.3s ease;
+                            position: relative;
+                            padding: 0.5rem 0;
+                        ">
+                            Testimonials
+                            <span class="nav-link-underline" style="
+                                position: absolute;
+                                bottom: 0;
+                                left: 0;
+                                width: 0;
+                                height: 2px;
+                                background-color: #3b82f6;
+                                transition: width 0.3s ease;
+                            "></span>
+                        </a>
+                    </li>
+                    <li class="nav-item mx-2">
+                        <a class="nav-link fw-medium" href="#contact" style="
+                            color: white;
+                            transition: all 0.3s ease;
+                            position: relative;
+                            padding: 0.5rem 0;
+                        ">
+                            Contact
+                            <span class="nav-link-underline" style="
+                                position: absolute;
+                                bottom: 0;
+                                left: 0;
+                                width: 0;
+                                height: 2px;
+                                background-color: #3b82f6;
+                                transition: width 0.3s ease;
+                            "></span>
+                        </a>
+                    </li>
+                    <li class="nav-item ms-3">
+                        <button onclick="openLoginModal()" class="btn px-6 py-2 rounded-full fw-medium" 
+                            style="
+                                background-color: #3b82f6;
+                                color: white;
+                                border: none;
+                                box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+                                transition: all 0.3s ease;
+                                position: relative;
+                                overflow: hidden;
+                            ">
+                            <span style="position: relative; z-index: 1;">Get Started</span>
+                            <span class="btn-shine" style="
+                                position: absolute;
+                                top: 0;
+                                left: -100%;
+                                width: 100%;
+                                height: 100%;
+                                background: linear-gradient(
+                                    90deg,
+                                    transparent,
+                                    rgba(255, 255, 255, 0.2),
+                                    transparent
+                                );
+                                transition: 0.5s;
+                            "></span>
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <style>
+    /* Navbar hover effects */
+    .navbar-brand:hover {
+        transform: scale(1.05);
+    }
+
+    .navbar-brand:hover .navbar-logo {
+        transform: rotate(5deg);
+    }
+
+    .nav-link {
+        color: white !important;
+        transition: all 0.3s ease;
+    }
+
+    .nav-link:hover {
+        color: #3b82f6 !important;
+    }
+
+    .nav-link:hover .nav-link-underline {
+        width: 100%;
+    }
+
+    .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    }
+
+    .btn:hover .btn-shine {
+        left: 100%;
+    }
+
+    /* Navbar scroll effect */
+    .navbar {
+        background-color: rgba(15, 23, 42, 0.95);
+        transition: all 0.3s ease;
+    }
+
+    .navbar.scrolled {
+        background-color: rgba(15, 23, 42, 0.98);
+        padding: 0.8rem 0;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    .navbar-brand span {
+        color: white !important;
+    }
+
+    /* Mobile menu animation */
+    .navbar-collapse {
+        transition: all 0.3s ease;
+    }
+
+    @media (max-width: 991.98px) {
+        .navbar-collapse {
+            background-color: rgba(15, 23, 42, 0.98);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+        }
+        
+        .nav-link {
+            padding: 0.8rem 0;
+        }
+    }
+    </style>
+
+    <script>
+    // Add this function to handle opening the login modal
+    function openLoginModal() {
+        const loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
+        loginModal.show();
+    }
+
+    // Navbar scroll effect
+    window.addEventListener('scroll', function() {
+        const navbar = document.querySelector('.navbar');
+        if (window.scrollY > 50) {
+            navbar.classList.add('scrolled');
+        } else {
+            navbar.classList.remove('scrolled');
+        }
+    });
+
+    // Add hover effect to nav links
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.addEventListener('mouseenter', function() {
+            this.querySelector('.nav-link-underline').style.width = '100%';
+        });
+        
+        link.addEventListener('mouseleave', function() {
+            this.querySelector('.nav-link-underline').style.width = '0';
+        });
+    });
+    </script>
+
+<!-- Hero Section -->
+<section class="hero min-vh-100 d-flex align-items-center" style="
+    background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)),
+    url('assets/img/bg.jpg') no-repeat center center;
+    background-size: cover;
+    background-attachment: fixed;
+    color: white;
+    padding-top: 80px;
+">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-6">
+                <h1 class="display-4 fw-bold">Modern Jeepney Travel Experience</h1>
+                <p class="lead">Transform your daily commute with real-time tracking, easy booking, and secure payments.</p>
+                <a href="#" class="btn btn-light btn-lg me-3">Get Started</a>
+                <a href="#features" class="btn btn-outline-light btn-lg">Learn More</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+    <!-- Features Section -->
+    <section class="features py-5" id="features" style="background-color: #ffffff;">
+        <div class="container">
+            <div class="row text-center mb-5">
+                <div class="col-lg-8 mx-auto">
+                    <h2 class="mb-4">Why Choose JeepniGo</h2>
+                    <p class="lead">Experience the future of public transportation with our innovative features.</p>
+                </div>
+            </div>
+            <div class="row g-4">
+                <div class="col-lg-4">
+                    <div class="feature-card p-4 rounded-4" style="background: #f8fafc; transition: all 0.3s ease;">
+                        <div class="feature-icon mb-3">
+                            <i class="bi bi-geo-alt text-primary" style="font-size: 2rem;"></i>
+                        </div>
+                        <h4>Real-time Tracking</h4>
+                        <p class="text-muted">Know exactly where your jeepney is and when it will arrive.</p>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="feature-card p-4 rounded-4" style="background: #f8fafc; transition: all 0.3s ease;">
+                        <div class="feature-icon mb-3">
+                            <i class="bi bi-phone text-primary" style="font-size: 2rem;"></i>
+                        </div>
+                        <h4>Easy Booking</h4>
+                        <p class="text-muted">Book your rides in advance with just a few taps.</p>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="feature-card p-4 rounded-4" style="background: #f8fafc; transition: all 0.3s ease;">
+                        <div class="feature-icon mb-3">
+                            <i class="bi bi-shield-check text-primary" style="font-size: 2rem;"></i>
+                        </div>
+                        <h4>Secure Payments</h4>
+                        <p class="text-muted">Pay safely and conveniently through our platform.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+<section class="about py-5" id="about" style="background-color: #f8fafc;">
+    <div class="container">
+        <div class="row text-center mb-5">
+            <div class="col-lg-8 mx-auto">
+                <h2 class="mb-4">Our Mission</h2>
+                <p class="lead">JeepniGo is revolutionizing public transportation by connecting commuters with jeepney drivers, making daily commutes more efficient and reliable for everyone.</p>
+            </div>
+        </div>
+        <div class="row g-4">
+            <div class="col-lg-4">
+                <div class="about-card p-4 rounded-4" style="background: white; transition: all 0.3s ease;">
+                    <div class="about-icon mb-3">
+                        <i class="bi bi-people text-primary" style="font-size: 2rem;"></i>
+                    </div>
+                    <h4>For Commuters</h4>
+                    <p class="text-muted">We help commuters find available jeepney rides quickly, especially during peak hours, reducing waiting time and improving the overall travel experience.</p>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="about-card p-4 rounded-4" style="background: white; transition: all 0.3s ease;">
+                    <div class="about-icon mb-3">
+                        <i class="bi bi-cash-coin text-primary" style="font-size: 2rem;"></i>
+                    </div>
+                    <h4>For Drivers</h4>
+                    <p class="text-muted">Our platform helps drivers manage earnings more effectively, reduce unpaid fares, and optimize their routes for better income and efficiency.</p>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="about-card p-4 rounded-4" style="background: white; transition: all 0.3s ease;">
+                    <div class="about-icon mb-3">
+                        <i class="bi bi-graph-up text-primary" style="font-size: 2rem;"></i>
+                    </div>
+                    <h4>Smart Solutions</h4>
+                    <p class="text-muted">Through route optimization and real-time tracking, we're creating a more organized and efficient public transportation system for everyone.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Stats Section -->
+    <section class="stats py-5" style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);">
+        <div class="container">
+            <div class="row text-center">
+                <div class="col-lg-3 col-md-6 mb-4">
+                    <div class="stat-number text-white" style="font-size: 2.5rem; font-weight: bold;">50K+</div>
+                    <p class="text-white-50">Daily Users</p>
+                </div>
+                <div class="col-lg-3 col-md-6 mb-4">
+                    <div class="stat-number text-white" style="font-size: 2.5rem; font-weight: bold;">1000+</div>
+                    <p class="text-white-50">Registered Jeepneys</p>
+                </div>
+                <div class="col-lg-3 col-md-6 mb-4">
+                    <div class="stat-number text-white" style="font-size: 2.5rem; font-weight: bold;">100+</div>
+                    <p class="text-white-50">Routes Covered</p>
+                </div>
+                <div class="col-lg-3 col-md-6 mb-4">
+                    <div class="stat-number text-white" style="font-size: 2.5rem; font-weight: bold;">4.8</div>
+                    <p class="text-white-50">User Rating</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Call to Action -->
+    <section class="cta text-center">
+        <div class="container">
+            <h2 class="mb-4">Ready to Transform Your Travel?</h2>
+            <p class="mb-4">Join thousands of satisfied commuters who have made the switch to JeepniGo.</p>
+            <a href="#" class="btn btn-light btn-lg">Get Started Now</a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer py-5" style="background-color: #1e293b;">
+        <div class="container">
+            <div class="row g-4">
+                <div class="col-lg-4">
+                    <div class="footer-brand d-flex align-items-center mb-4">
+                        <img src="\tebz\img\logo12.png" alt="JeepniGo Logo" class="me-3" style="width: 40px; height: auto;">
+                        <span class="text-white fs-4 fw-bold">JeepniGo</span>
+                    </div>
+                    <p class="text-white-50">Making public transportation more accessible, efficient, and enjoyable for everyone.</p>
+                    <div class="social-links mt-4">
+                        <a href="#" class="text-white me-3" style="font-size: 1.5rem;"><i class="bi bi-facebook"></i></a>
+                        <a href="#" class="text-white me-3" style="font-size: 1.5rem;"><i class="bi bi-twitter"></i></a>
+                        <a href="#" class="text-white me-3" style="font-size: 1.5rem;"><i class="bi bi-instagram"></i></a>
+                        <a href="#" class="text-white" style="font-size: 1.5rem;"><i class="bi bi-linkedin"></i></a>
+                    </div>
+                </div>
+                <div class="col-lg-2">
+                    <h5 class="text-white mb-4">Quick Links</h5>
+                    <ul class="list-unstyled footer-links">
+                        <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none">Home</a></li>
+                        <li class="mb-2"><a href="#features" class="text-white-50 text-decoration-none">Features</a></li>
+                        <li class="mb-2"><a href="#about" class="text-white-50 text-decoration-none">About</a></li>
+                        <li class="mb-2"><a href="#testimonials" class="text-white-50 text-decoration-none">Testimonials</a></li>
+                        <li><a href="#contact" class="text-white-50 text-decoration-none">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="col-lg-2">
+                    <h5 class="text-white mb-4">Legal</h5>
+                    <ul class="list-unstyled footer-links">
+                        <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none">Privacy Policy</a></li>
+                        <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none">Terms of Service</a></li>
+                        <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none">Cookie Policy</a></li>
+                        <li><a href="#" class="text-white-50 text-decoration-none">FAQ</a></li>
+                    </ul>
+                </div>
+                <div class="col-lg-4">
+                    <h5 class="text-white mb-4">Newsletter</h5>
+                    <p class="text-white-50">Subscribe to our newsletter for updates and offers.</p>
+                    <form class="newsletter-form">
+                        <div class="input-group mb-3">
+                            <input type="email" class="form-control" placeholder="Enter your email" style="background: rgba(255, 255, 255, 0.1); border: none; color: white;">
+                            <button class="btn btn-primary" type="submit">Subscribe</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <hr class="my-4" style="border-color: rgba(255, 255, 255, 0.1);">
+            <div class="row">
+                <div class="col-md-6">
+                    <p class="text-white-50 mb-0">&copy; 2024 JeepniGo. All rights reserved.</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <p class="text-white-50 mb-0">Designed with <i class="bi bi-heart-fill text-danger"></i> for better transportation</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Navbar scroll effect
+        window.addEventListener('scroll', function() {
+            if (window.scrollY > 50) {
+                document.querySelector('.navbar').classList.add('scrolled');
+            } else {
+                document.querySelector('.navbar').classList.remove('scrolled');
+            }
+        });
+    </script>
+
+   <style>
+    .modal-header {
+    padding: 2rem 2rem 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    position: relative;
+}
+
+.modal-title {
+    font-weight: 700;
+    font-size: 1.8rem;
+    margin: 0 auto;
+    color: var(--dark-color);
+}
+
+.btn-close {
+    position: absolute;
+    right: 1.5rem;
+    top: 1.5rem;
+}
+   </style>
+    
+    <!-- Login Modal -->
+    <div class="modal fade" id="loginModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title">Welcome Back</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                <form id="loginForm" method="post">
+                        <input type="hidden" name="action" value="login">
+                        <div class="mb-3">
+                            <label class="form-label">Email address</label>
+                            <input type="email" name="email" class="form-control" placeholder="Enter your email" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Password</label>
+                            <input type="password" name="password" class="form-control" placeholder="Enter your password" required>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="rememberMe">
+                            <label class="form-check-label" for="rememberMe">Remember me</label>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Login</button>
+                    </form>
+                    <div class="text-center mt-3">
+                        <p class="mb-0">Don't have an account? <a href="#" data-bs-toggle="modal" data-bs-target="#signupModal" data-bs-dismiss="modal">Sign up</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Signup Modal -->
+    <div class="modal fade" id="signupModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title">Create Account</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="signupForm" method="post">
+                        <input type="hidden" name="action" value="signup">
+                        <div class="mb-3">
+                            <label class="form-label">First Name</label>
+                            <input type="text" name="firstName" class="form-control" placeholder="Enter your first name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Last Name</label>
+                            <input type="text" name="lastName" class="form-control" placeholder="Enter your last name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Email address</label>
+                            <input type="email" name="email" class="form-control" placeholder="Enter your email" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Password</label>
+                            <input type="password" name="password" class="form-control" placeholder="Create a password" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Confirm Password</label>
+                            <input type="password" name="confirm_password" class="form-control" placeholder="Confirm your password" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Sign Up</button>
+                    </form>
+                    <div class="text-center mt-3">
+                        <p class="mb-0">Already have an account? <a href="#" data-bs-toggle="modal" data-bs-target="#loginModal" data-bs-dismiss="modal">Login</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
+    <script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        fetch('', {
+            method: 'POST',
+            body: new FormData(this)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success!',
+                    text: data.message,
+                    showConfirmButton: false,
+                    timer: 1500
+                }).then(() => {
+                    window.location.href = data.redirect;
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error!',
+                    text: data.message
+                });
+            }
+        });
+    });
+
+    document.getElementById('signupForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        fetch('', {
+            method: 'POST',
+            body: new FormData(this)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success!',
+                    text: data.message,
+                    showConfirmButton: false,
+                    timer: 1500
+                }).then(() => {
+                    window.location.href = 'landing.php';
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error!',
+                    text: data.message
+                });
+            }
+        });
+    });
+
+});
+</script>
+
+<!-- Testimonials Section -->
+<section class="testimonials py-5" id="testimonials" style="background-color: #ffffff;">
+    <div class="container">
+        <div class="row text-center mb-5">
+            <div class="col-lg-8 mx-auto">
+                <h2 class="mb-4">What Our Users Say</h2>
+                <p class="lead text-muted">Hear from our satisfied commuters and drivers about their experience with JeepniGo.</p>
+            </div>
+        </div>
+        <div class="row g-4">
+            <div class="col-lg-4">
+                <div class="testimonial-card p-4 rounded-4" style="
+                    background: white;
+                    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                    transition: all 0.3s ease;
+                ">
+                    <div class="d-flex align-items-center mb-3">
+                        <img src="https://ui-avatars.com/api/?name=John+Doe&background=3b82f6&color=fff" 
+                             alt="John Doe" 
+                             class="rounded-circle me-3"
+                             style="width: 50px; height: 50px;">
+                        <div>
+                            <h5 class="mb-0">John Doe</h5>
+                            <small class="text-muted">Regular Commuter</small>
+                        </div>
+                    </div>
+                    <p class="mb-0">"JeepniGo has made my daily commute so much easier. The real-time tracking feature is a game-changer!"</p>
+                    <div class="mt-3">
+                        <i class="bi bi-star-fill text-warning"></i>
+                        <i class="bi bi-star-fill text-warning"></i>
+                        <i class="bi bi-star-fill text-warning"></i>
+                        <i class="bi bi-star-fill text-warning"></i>
+                        <i class="bi bi-star-fill text-warning"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="testimonial-card p-4 rounded-4" style="
+                    background: white;
+                    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                    transition: all 0.3s ease;
+                ">
+                    <div class="d-flex align-items-center mb-3">
+                        <img src="https://ui-avatars.com/api/?name=Jane+Smith&background=3b82f6&color=fff" 
+                             alt="Jane Smith" 
+                             class="rounded-circle me-3"
+                             style="width: 50px; height: 50px;">
+                        <div>
+                            <h5 class="mb-0">Jane Smith</h5>
+                            <small class="text-muted">Jeepney Driver</small>
+                        </div>
+                    </div>
+                    <p class="mb-0">"As a driver, I've seen my earnings increase since joining JeepniGo. The platform is easy to use and very reliable."</p>
+                    <div class="mt-3">
+                        <i class="bi bi-star-fill text-warning"></i>
+                        <i class="bi bi-star-fill text-warning"></i>
+                        <i class="bi bi-star-fill text-warning"></i>
+                        <i class="bi bi-star-fill text-warning"></i>
+                        <i class="bi bi-star-fill text-warning"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="testimonial-card p-4 rounded-4" style="
+                    background: white;
+                    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                    transition: all 0.3s ease;
+                ">
+                    <div class="d-flex align-items-center mb-3">
+                        <img src="https://ui-avatars.com/api/?name=Mike+Johnson&background=3b82f6&color=fff" 
+                             alt="Mike Johnson" 
+                             class="rounded-circle me-3"
+                             style="width: 50px; height: 50px;">
+                        <div>
+                            <h5 class="mb-0">Mike Johnson</h5>
+                            <small class="text-muted">Business Professional</small>
+                        </div>
+                    </div>
+                    <p class="mb-0">"The booking system is incredibly convenient. I can plan my trips ahead and never worry about finding a ride."</p>
+                    <div class="mt-3">
+                        <i class="bi bi-star-fill text-warning"></i>
+                        <i class="bi bi-star-fill text-warning"></i>
+                        <i class="bi bi-star-fill text-warning"></i>
+                        <i class="bi bi-star-fill text-warning"></i>
+                        <i class="bi bi-star-half text-warning"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Contact Section -->
+<section class="contact py-5" id="contact" style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);">
+    <div class="container">
+        <div class="row text-center mb-5">
+            <div class="col-lg-8 mx-auto">
+                <h2 class="text-white mb-4">Get in Touch</h2>
+                <p class="lead text-white-50">Have questions? We'd love to hear from you. Send us a message and we'll respond as soon as possible.</p>
+            </div>
+        </div>
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="contact-form p-4 rounded-4" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);">
+                    <form id="contactForm">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <input type="text" class="form-control form-control-lg bg-transparent text-white border-0 border-bottom" 
+                                       placeholder="Your Name" required
+                                       style="border-radius: 0; padding: 0.75rem 0;">
+                            </div>
+                            <div class="col-md-6">
+                                <input type="email" class="form-control form-control-lg bg-transparent text-white border-0 border-bottom" 
+                                       placeholder="Your Email" required
+                                       style="border-radius: 0; padding: 0.75rem 0;">
+                            </div>
+                            <div class="col-12">
+                                <input type="text" class="form-control form-control-lg bg-transparent text-white border-0 border-bottom" 
+                                       placeholder="Subject" required
+                                       style="border-radius: 0; padding: 0.75rem 0;">
+                            </div>
+                            <div class="col-12">
+                                <textarea class="form-control form-control-lg bg-transparent text-white border-0 border-bottom" 
+                                          placeholder="Your Message" rows="4" required
+                                          style="border-radius: 0; padding: 0.75rem 0;"></textarea>
+                            </div>
+                            <div class="col-12 text-center">
+                                <button type="submit" class="btn btn-light btn-lg px-5 py-3 rounded-pill" 
+                                        style="transition: all 0.3s ease;">
+                                    Send Message
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+/* Testimonial card hover effect */
+.testimonial-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* Contact form styling */
+.form-control:focus {
+    background-color: transparent !important;
+    box-shadow: none;
+    border-color: rgba(255, 255, 255, 0.5) !important;
+}
+
+.form-control::placeholder {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.btn-light:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
+}
+</style>
+
+<script>
+// Add smooth scroll for navigation links
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        document.querySelector(this.getAttribute('href')).scrollIntoView({
+            behavior: 'smooth'
+        });
+    });
+});
+
+// Contact form submission
+document.getElementById('contactForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    // Add your form submission logic here
+    alert('Thank you for your message! We will get back to you soon.');
+    this.reset();
+});
+</script>
+</body>
+</html>

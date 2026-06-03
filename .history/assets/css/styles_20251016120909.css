@@ -1,0 +1,1299 @@
+
+/*--------------------------------------------------------------
+# General Page Background
+--------------------------------------------------------------*/
+body {
+    background: url('jeep.jpg') no-repeat center center fixed;
+    background-size: cover;
+    color: white;
+    height: 100vh;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    font-family: 'Poppins', sans-serif;
+}
+
+/*--------------------------------------------------------------
+# Navbar Branding
+--------------------------------------------------------------*/
+.navbar-brand img {
+    height: 40px;
+}
+
+/*--------------------------------------------------------------
+# Main Section
+--------------------------------------------------------------*/
+.main-section {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.main-section h1 {
+    font-size: 3rem;
+    margin-bottom: 20px;
+}
+
+.main-section p {
+    font-size: 1.5rem;
+}
+
+/*--------------------------------------------------------------
+# Features Section
+--------------------------------------------------------------*/
+.features-section {
+    padding: 20px 10px;
+    background-color: rgba(255, 255, 255, 0.9);
+    color: black;
+}
+
+.features-section .icon {
+    font-size: 3rem;
+    color: #007bff;
+}
+
+/*--------------------------------------------------------------
+# Footer
+--------------------------------------------------------------*/
+.footer {
+    background: #343a40;
+    color: white;
+    padding: 10px 0;
+    text-align: center;
+}
+
+/*--------------------------------------------------------------
+# Login Section
+--------------------------------------------------------------*/
+.login-section {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.login-section .container {
+    background: white;
+    color: #333;
+    padding: 40px;
+    border-radius: 10px;
+    max-width: 400px;
+    width: 100%;
+}
+
+.login-section h2 {
+    margin-bottom: 20px;
+}
+
+.form-group input {
+    background: #f8f9fa;
+}
+
+/*--------------------------------------------------------------
+# Dashboard Layout
+--------------------------------------------------------------*/
+.sidebar {
+    background-color: #2c3e50;
+    color: white;
+    width: 250px;
+    height: 100vh;
+    padding: 20px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 9999 !important;
+    transition: transform 0.3s ease-in-out;
+}
+
+.sidebar .logo {
+    text-align: center;
+    font-size: 1.8rem;
+    font-weight: bold;
+    margin-bottom: 30px;
+}
+
+.sidebar ul {
+    list-style: none;
+    padding: 0;
+}
+
+.sidebar ul li a {
+    display: block;
+    padding: 10px;
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    transition: background-color 0.3s ease;
+}
+
+.sidebar ul li a:hover,
+.sidebar ul li a.active {
+    background-color: #1abc9c;
+}
+.sidebar .nav-link:hover,
+.sidebar .nav-link.fw-bold {
+    background-color: #495057;
+    border-radius: 8px;
+}
+
+.content {
+    margin-left: 250px;
+    padding: 30px;
+    width: calc(100% - 250px);
+    position: relative;
+    z-index: 1;
+    transition: margin-left 0.3s ease-in-out;
+}
+
+header {
+    background-color: #3498db;
+    color: white;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+/*--------------------------------------------------------------
+# Tables
+--------------------------------------------------------------*/
+table {
+    width: 100%;
+    margin-top: 20px;
+}
+
+table th,
+table td {
+    padding: 12px;
+    border: 1px solid #ddd;
+    text-align: left;
+}
+
+table th {
+    background-color: #f4f4f4;
+}
+
+/*--------------------------------------------------------------
+# Buttons
+--------------------------------------------------------------*/
+.apply-now-btn {
+    background: linear-gradient(45deg, #ff416c, #ff4b2b);
+    border: none;
+    padding: 15px 30px;
+    font-size: 20px;
+    font-weight: bold;
+    color: white;
+    border-radius: 50px;
+    transition: all 0.3s ease;
+    box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.apply-now-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0px 10px 20px rgba(0, 0, 0, 0.3);
+}
+
+.role-btn {
+    width: 120px;
+    height: 120px;
+    border-radius: 15px;
+    border: 3px solid #ccc;
+    background: white;
+    font-size: 1.2rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease-in-out;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.role-btn:hover {
+    transform: scale(1.05);
+}
+
+.role-btn.selected {
+    background-color: #007bff;
+    color: white;
+    border-color: #0056b3;
+}
+
+.operator.selected {
+    background-color: #28a745;
+    color: white;
+    border-color: #1e7e34;
+}
+
+.driver {
+    border-color: #007bff;
+    color: #007bff;
+}
+
+.operator {
+    border-color: #28a745;
+    color: #28a745;
+}
+
+/*--------------------------------------------------------------
+# Modal Styling
+--------------------------------------------------------------*/
+.modal-content {
+    border-radius: 15px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+}
+
+.modal-header {
+    background: linear-gradient(to right, #007bff, #0056b3);
+    color: #fff;
+    border-bottom: 2px solid #0056b3;
+    border-radius: 5px 5px 0 0;
+}
+
+.modal-header .modal-title {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #fff;
+}
+
+.modal-header .btn-close {
+    color: #fff;
+    opacity: 0.8;
+}
+
+.modal-header .btn-close:hover {
+    opacity: 1;
+}
+
+.modal-body {
+    padding: 30px;
+    background: #f8f9fa;
+}
+
+.signup-form label {
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-bottom: 5px;
+    color: #333;
+}
+
+.signup-form .form-control {
+    border-radius: 10px;
+    border: 1px solid #ced4da;
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.05);
+    padding: 10px 15px;
+    font-size: 0.9rem;
+    transition: all 0.2s ease-in-out;
+}
+
+.signup-form .form-control:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 5px rgba(0, 123, 255, 0.25);
+}
+
+.signup-form .btn-primary {
+    background: linear-gradient(to right, #007bff, #0056b3);
+    border: none;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 25px;
+    padding: 10px 20px;
+    box-shadow: 0 4px 10px rgba(0, 123, 255, 0.2);
+    transition: all 0.3s ease;
+}
+
+.signup-form .btn-primary:hover {
+    background: #0056b3;
+    box-shadow: 0 6px 15px rgba(0, 86, 179, 0.4);
+}
+
+.signup-form .btn-primary i {
+    margin-right: 5px;
+}
+
+.signup-form .alert {
+    margin-top: 20px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+}
+
+.signup-form .text-center a {
+    color: #007bff;
+    font-weight: bold;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.signup-form .text-center a:hover {
+    color: #0056b3;
+}
+
+/*--------------------------------------------------------------
+# Dropdowns
+--------------------------------------------------------------*/
+.dropdown-menu {
+    max-height: 300px;
+    overflow-y: auto;
+    border-radius: 10px;
+}
+
+.dropdown-item:hover {
+    background: #f8f9fa;
+    color: #007bff;
+}
+
+/*--------------------------------------------------------------
+# Announcement Section
+--------------------------------------------------------------*/
+.announcement-item {
+    display: none;
+}
+
+/*--------------------------------------------------------------
+# Responsive Adjustments
+--------------------------------------------------------------*/
+@media (max-width: 768px) {
+    .modal-dialog {
+        max-width: 95%;
+    }
+
+    .modal-header .modal-title {
+        font-size: 1.2rem;
+    }
+
+    .signup-form .btn-primary {
+        font-size: 1rem;
+        padding: 8px 15px;
+    }
+}
+
+
+/*--------------------------------------------------------------
+# Cooperative Manager Dashboard Styles
+--------------------------------------------------------------*/
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: #f8f9fa;
+    color: black;
+}
+
+/* Navbar */
+.navbar {
+    background-color: #2c3e50;
+    padding: 10px;
+}
+
+.navbar .navbar-brand {
+    color: #fff;
+    font-weight: bold;
+    font-size: 1.5rem;
+}
+
+.navbar .nav-link {
+    color: #ffffff;
+    font-weight: 600;
+    transition: 0.3s ease-in-out;
+}
+
+.navbar .nav-link:hover {
+    color: #1abc9c;
+}
+
+/* Main Content */
+.container {
+    margin-top: 30px;
+}
+
+.card {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    position: relative;
+}
+
+.card .card-icon {
+    font-size: 2.5rem;
+    color: #3498db;
+}
+
+.card:hover {
+    transform: scale(1.02);
+    transition: 0.3s;
+}
+
+.card-title {
+    font-size: 1.25rem;
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+.card-text {
+    font-size: 1rem;
+    color: #6c757d;
+}
+
+/* Notification Badge */
+.notification-badge {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    background-color: #e74c3c;
+    color: white;
+    font-size: 0.8rem;
+    font-weight: bold;
+    border-radius: 50%;
+    padding: 5px 10px;
+}
+
+/* Table Styling */
+.table thead {
+    background-color: #2980b9;
+    color: #fff;
+}
+
+.table tbody tr:hover {
+    background-color: #f1f1f1;
+}
+
+
+/* Hero Section Styling */
+.hero {
+    height: 300px;
+    position: relative;
+    background-color: #000;
+}
+
+.hero-bg {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.4;
+    z-index: 1;
+}
+
+.hero .container {
+    z-index: 2;
+}
+
+.hero h1, .hero p {
+    color: #ffffff;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+#jeepneyStatusCards .card {
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(44, 62, 80, 0.08);
+    margin-bottom: 1.5rem;
+    transition: box-shadow 0.2s;
+}
+#jeepneyStatusCards .card:hover {
+    box-shadow: 0 8px 24px rgba(44, 62, 80, 0.15);
+}
+#jeepneyStatusCards .badge {
+    font-size: 1rem;
+    font-weight: 500;
+    border-radius: 8px;
+}
+#jeepneyStatusCards .btn {
+    font-size: 1.05rem;
+    border-radius: 8px;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.08);
+    transition: all 0.2s;
+}
+#jeepneyStatusCards .btn:active {
+    transform: scale(0.98);
+}
+#jeepneyMap {
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(44, 62, 80, 0.08);
+}
+
+/*--------------------------------------------------------------
+# MOBILE-RESPONSIVE DESIGN FOR ALL DASHBOARDS
+--------------------------------------------------------------*/
+
+/*
+ * Z-INDEX LAYERING (from bottom to top):
+ * ------------------------------------------
+ * z-index: 1       → Main content & cards
+ * z-index: 1000    → Dropdown menus
+ * z-index: 9989    → Modal backdrop
+ * z-index: 9990    → Modal dialogs
+ * z-index: 9998    → Sidebar overlay (dark background)
+ * z-index: 9999    → Sidebar (always on top when opened)
+ * z-index: 10000   → Mobile toggle button
+ */
+
+/* Sidebar Toggle Button */
+.sidebar-toggle {
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    z-index: 10001;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    width: 50px;
+    height: 50px;
+    font-size: 1.5rem;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sidebar-toggle:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+}
+
+.sidebar-toggle:active {
+    transform: scale(0.95);
+}
+
+/* Sidebar states */
+.sidebar {
+    transition: left 0.3s ease, transform 0.3s ease !important;
+}
+
+.sidebar.hidden {
+    left: -280px !important;
+}
+
+/* Adjust toggle button position when sidebar is hidden */
+.sidebar.hidden ~ .sidebar-toggle,
+.sidebar-toggle.sidebar-hidden {
+    left: 15px !important;
+}
+
+/* Desktop: Sidebar visible */
+@media (min-width: 992px) {
+    .mobile-nav-toggle {
+        display: none !important;
+    }
+    
+    .sidebar {
+        position: fixed !important;
+        left: 0 !important;
+        top: 0;
+        width: 280px;
+        height: 100vh;
+        overflow-y: auto;
+        z-index: 1000;
+    }
+    
+    .sidebar.hidden {
+        left: -280px !important;
+    }
+    
+    .sidebar-overlay {
+        display: none !important;
+    }
+    
+    .content-wrapper {
+        margin-left: 280px !important;
+        width: calc(100% - 280px) !important;
+        transition: margin-left 0.3s ease, width 0.3s ease;
+    }
+    
+    .sidebar.hidden ~ .content-wrapper,
+    .content-wrapper.sidebar-hidden {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+    
+    .sidebar-toggle {
+        left: 295px;
+    }
+    
+    .sidebar.hidden ~ .sidebar-toggle,
+    .sidebar-toggle.sidebar-hidden {
+        left: 15px !important;
+    }
+}
+
+/* Tablet: Narrower sidebar, always visible */
+@media (max-width: 991.98px) and (min-width: 576px) {
+    .mobile-nav-toggle {
+        display: none !important;
+    }
+    
+    .sidebar {
+        position: fixed !important;
+        left: 0 !important;
+        top: 0;
+        width: 200px !important;
+        height: 100vh;
+        overflow-y: auto;
+        overflow-x: hidden;
+        z-index: 1000 !important;
+        box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+    }
+    
+    .sidebar.hidden {
+        left: -200px !important;
+    }
+    
+    .sidebar-overlay {
+        display: none !important;
+    }
+    
+    .sidebar .sidebar-text {
+        font-size: 0.85rem !important;
+    }
+    
+    .sidebar .sidebar-icon {
+        width: 35px !important;
+        height: 35px !important;
+        font-size: 0.9rem !important;
+    }
+    
+    .sidebar-header {
+        padding: 1rem !important;
+    }
+    
+    .sidebar-header h5 {
+        font-size: 1rem !important;
+    }
+    
+    .sidebar-header img {
+        width: 70px !important;
+        height: 70px !important;
+    }
+    
+    .content {
+        margin-left: 200px !important;
+        width: calc(100% - 200px) !important;
+        padding: 20px 15px !important;
+        transition: margin-left 0.3s ease, width 0.3s ease;
+    }
+    
+    .sidebar.hidden ~ .content,
+    .content.sidebar-hidden {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+    
+    .content-wrapper {
+        margin-left: 200px !important;
+        width: calc(100% - 200px) !important;
+        transition: margin-left 0.3s ease, width 0.3s ease;
+    }
+    
+    .sidebar.hidden ~ .content-wrapper,
+    .content-wrapper.sidebar-hidden {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+    
+    .content-header {
+        padding: 0.75rem 1rem !important;
+    }
+    
+    .content-header h4 {
+        font-size: 1.1rem !important;
+    }
+    
+    .sidebar-toggle {
+        left: 215px;
+    }
+    
+    .sidebar.hidden ~ .sidebar-toggle,
+    .sidebar-toggle.sidebar-hidden {
+        left: 15px !important;
+    }
+}
+
+/* Mobile: Very narrow sidebar, always visible */
+@media (max-width: 575.98px) {
+    .mobile-nav-toggle {
+        display: none !important;
+    }
+    
+    .sidebar {
+        position: fixed !important;
+        left: 0 !important;
+        top: 0;
+        width: 70px !important;
+        height: 100vh;
+        overflow-y: auto;
+        overflow-x: hidden;
+        z-index: 1000 !important;
+        box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+    }
+    
+    .sidebar.hidden {
+        left: -70px !important;
+    }
+    
+    .sidebar-overlay {
+        display: none !important;
+    }
+    
+    /* Hide text, show only icons on very small screens */
+    .sidebar .sidebar-text {
+        display: none !important;
+    }
+    
+    .sidebar .sidebar-icon {
+        width: 40px !important;
+        height: 40px !important;
+        font-size: 1.2rem !important;
+        margin-right: 0 !important;
+    }
+    
+    .sidebar-link {
+        padding: 10px 5px !important;
+        justify-content: center !important;
+    }
+    
+    .sidebar-link .d-flex {
+        justify-content: center !important;
+    }
+    
+    .sidebar-header {
+        padding: 0.5rem !important;
+    }
+    
+    .sidebar-header h5,
+    .sidebar-header .badge,
+    .sidebar-footer {
+        display: none !important;
+    }
+    
+    .sidebar-header img {
+        width: 50px !important;
+        height: 50px !important;
+    }
+    
+    .sidebar-indicator {
+        display: none !important;
+    }
+    
+    .content {
+        margin-left: 70px !important;
+        width: calc(100% - 70px) !important;
+        padding: 15px 10px !important;
+        transition: margin-left 0.3s ease, width 0.3s ease;
+    }
+    
+    .sidebar.hidden ~ .content,
+    .content.sidebar-hidden {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+    
+    .content-wrapper {
+        margin-left: 70px !important;
+        width: calc(100% - 70px) !important;
+        transition: margin-left 0.3s ease, width 0.3s ease;
+    }
+    
+    .sidebar.hidden ~ .content-wrapper,
+    .content-wrapper.sidebar-hidden {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+    
+    .content-header {
+        padding: 0.5rem 0.75rem !important;
+    }
+    
+    .content-header h4 {
+        font-size: 1rem !important;
+    }
+    
+    .content-header img {
+        height: 24px !important;
+    }
+    
+    .sidebar-toggle {
+        left: 85px;
+    }
+    
+    .sidebar.hidden ~ .sidebar-toggle,
+    .sidebar-toggle.sidebar-hidden {
+        left: 15px !important;
+    }
+    
+    /* Ensure cards, modals work properly */
+    .card {
+        position: relative;
+        z-index: 1;
+    }
+    
+    .modal {
+        z-index: 9990 !important;
+    }
+    
+    .modal-backdrop {
+        z-index: 9989 !important;
+    }
+    
+    .dropdown-menu {
+        z-index: 1000;
+    }
+    
+    /* Profile Section in Sidebar */
+    .sidebar .text-center {
+        padding: 15px 10px;
+    }
+    
+    .sidebar .text-center img {
+        width: 70px !important;
+        height: 70px !important;
+    }
+    
+    .sidebar h5 {
+        font-size: 1rem !important;
+    }
+    
+    .sidebar small {
+        font-size: 0.8rem !important;
+    }
+    
+    /* Navigation Links */
+    .sidebar .nav-link {
+        padding: 12px 15px !important;
+        font-size: 0.95rem !important;
+    }
+    
+    .sidebar .nav-link i {
+        font-size: 1.2rem !important;
+        margin-right: 10px;
+    }
+}
+
+/* Tablets and Medium Screens */
+@media (max-width: 1199.98px) {
+    .sidebar {
+        width: 220px;
+    }
+    
+    .content {
+        margin-left: 220px;
+        width: calc(100% - 220px);
+    }
+}
+
+/* Mobile Portrait */
+@media (max-width: 575.98px) {
+    .sidebar {
+        width: 280px;
+    }
+    
+    .content {
+        padding: 70px 10px 15px 10px !important;
+    }
+    
+    /* Headers */
+    header h1, header h2 {
+        font-size: 1.5rem !important;
+    }
+    
+    header h3 {
+        font-size: 1.25rem !important;
+    }
+    
+    /* Cards */
+    .card {
+        margin-bottom: 15px !important;
+    }
+    
+    .card-body {
+        padding: 15px !important;
+    }
+    
+    .card-title {
+        font-size: 1rem !important;
+    }
+    
+    .card-text {
+        font-size: 0.9rem !important;
+    }
+}
+
+/*--------------------------------------------------------------
+# RESPONSIVE TABLES
+--------------------------------------------------------------*/
+@media (max-width: 991.98px) {
+    /* Make tables scrollable */
+    .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        border-radius: 10px;
+    }
+    
+    table {
+        min-width: 600px;
+        font-size: 0.9rem !important;
+    }
+    
+    table th, table td {
+        padding: 10px 8px !important;
+        white-space: nowrap;
+    }
+}
+
+@media (max-width: 575.98px) {
+    table {
+        font-size: 0.85rem !important;
+    }
+    
+    table th, table td {
+        padding: 8px 6px !important;
+    }
+    
+    /* Stack table action buttons */
+    .btn-group {
+        flex-direction: column !important;
+        gap: 5px;
+    }
+    
+    .btn-group .btn {
+        width: 100%;
+        margin-bottom: 5px;
+    }
+}
+
+/*--------------------------------------------------------------
+# RESPONSIVE BUTTONS
+--------------------------------------------------------------*/
+@media (max-width: 767.98px) {
+    .btn {
+        padding: 10px 16px;
+        font-size: 0.9rem;
+    }
+    
+    .btn-lg {
+        padding: 12px 20px;
+        font-size: 1rem;
+    }
+    
+    .btn-sm {
+        padding: 6px 12px;
+        font-size: 0.85rem;
+    }
+    
+    /* Full-width buttons on mobile */
+    .btn-block-mobile {
+        width: 100%;
+        display: block;
+        margin-bottom: 10px;
+    }
+}
+
+/*--------------------------------------------------------------
+# RESPONSIVE FORMS
+--------------------------------------------------------------*/
+@media (max-width: 767.98px) {
+    .form-control, .form-select {
+        font-size: 16px !important; /* Prevents zoom on iOS */
+        padding: 12px 15px;
+    }
+    
+    .form-label {
+        font-size: 0.9rem;
+        margin-bottom: 6px;
+    }
+    
+    /* Modal Forms */
+    .modal-dialog {
+        margin: 10px;
+    }
+    
+    .modal-content {
+        border-radius: 15px;
+    }
+    
+    .modal-body {
+        padding: 20px;
+    }
+    
+    .modal-header {
+        padding: 15px 20px;
+    }
+    
+    .modal-title {
+        font-size: 1.1rem;
+    }
+}
+
+/*--------------------------------------------------------------
+# RESPONSIVE CARDS & GRIDS
+--------------------------------------------------------------*/
+@media (max-width: 991.98px) {
+    .row {
+        margin-left: -10px;
+        margin-right: -10px;
+    }
+    
+    .row > * {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+    
+    /* Card grids */
+    .col-md-4, .col-md-6, .col-lg-3, .col-lg-4 {
+        margin-bottom: 20px;
+    }
+}
+
+@media (max-width: 575.98px) {
+    /* Force single column on mobile */
+    .col-sm-6, .col-md-4, .col-md-6, .col-lg-3, .col-lg-4 {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+}
+
+/*--------------------------------------------------------------
+# RESPONSIVE NAVIGATION & HEADER
+--------------------------------------------------------------*/
+@media (max-width: 991.98px) {
+    .navbar {
+        padding: 10px 15px !important;
+    }
+    
+    .navbar-brand {
+        font-size: 1.2rem !important;
+    }
+    
+    .navbar-brand img {
+        height: 35px !important;
+    }
+    
+    /* Dropdown menus */
+    .dropdown-menu {
+        position: absolute;
+        max-height: 250px;
+    }
+}
+
+/*--------------------------------------------------------------
+# TOUCH-FRIENDLY INTERACTIONS
+--------------------------------------------------------------*/
+@media (hover: none) and (pointer: coarse) {
+    /* Larger tap targets for mobile */
+    .btn, .nav-link, a, button {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    
+    /* Disable hover effects on touch devices */
+    .card:hover, .btn:hover {
+        transform: none;
+    }
+    
+    /* Add tap highlight */
+    * {
+        -webkit-tap-highlight-color: rgba(102, 126, 234, 0.1);
+    }
+}
+
+/*--------------------------------------------------------------
+# RESPONSIVE DASHBOARD STATS
+--------------------------------------------------------------*/
+@media (max-width: 767.98px) {
+    .stat-card, .dashboard-card {
+        text-align: center;
+    }
+    
+    .stat-number, .dashboard-number {
+        font-size: 2rem !important;
+    }
+    
+    .stat-label {
+        font-size: 0.9rem !important;
+    }
+}
+
+/*--------------------------------------------------------------
+# RESPONSIVE MODALS
+--------------------------------------------------------------*/
+@media (max-width: 575.98px) {
+    .modal-dialog {
+        max-width: 95%;
+        margin: 10px auto;
+    }
+    
+    .modal-fullscreen-sm-down {
+        width: 100vw;
+        max-width: none;
+        height: 100vh;
+        margin: 0;
+    }
+    
+    .modal-fullscreen-sm-down .modal-content {
+        height: 100vh;
+        border-radius: 0;
+    }
+}
+
+/*--------------------------------------------------------------
+# RESPONSIVE MAP CONTAINERS
+--------------------------------------------------------------*/
+@media (max-width: 767.98px) {
+    #map, #jeepneyMap, .leaflet-container {
+        height: 300px !important;
+        border-radius: 8px;
+    }
+}
+
+/*--------------------------------------------------------------
+# RESPONSIVE UTILITIES
+--------------------------------------------------------------*/
+/* Hide on mobile */
+@media (max-width: 767.98px) {
+    .hide-mobile {
+        display: none !important;
+    }
+}
+
+/* Hide on desktop */
+@media (min-width: 768px) {
+    .hide-desktop {
+        display: none !important;
+    }
+}
+
+/* Spacing utilities for mobile */
+@media (max-width: 767.98px) {
+    .py-5 {
+        padding-top: 2rem !important;
+        padding-bottom: 2rem !important;
+    }
+    
+    .px-5 {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+    
+    .my-5 {
+        margin-top: 2rem !important;
+        margin-bottom: 2rem !important;
+    }
+    
+    .mx-5 {
+        margin-left: 1rem !important;
+        margin-right: 1rem !important;
+    }
+}
+
+/*--------------------------------------------------------------
+# APP-STYLE ENHANCEMENTS
+--------------------------------------------------------------*/
+/* Smooth scrolling for app-like feel */
+html {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Pull-to-refresh prevention */
+body {
+    overscroll-behavior-y: contain;
+}
+
+/* Safe area insets for notched devices */
+@supports (padding: max(0px)) {
+    .sidebar {
+        padding-left: max(20px, env(safe-area-inset-left));
+        padding-right: max(20px, env(safe-area-inset-right));
+    }
+    
+    .content {
+        padding-left: max(30px, env(safe-area-inset-left));
+        padding-right: max(30px, env(safe-area-inset-right));
+    }
+}
+
+/* Bottom navigation for mobile (optional) */
+@media (max-width: 575.98px) {
+    .mobile-bottom-nav {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: white;
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        z-index: 1000;
+        display: flex;
+        justify-content: space-around;
+        padding: 10px 0;
+    }
+    
+    .mobile-bottom-nav .nav-item {
+        flex: 1;
+        text-align: center;
+    }
+    
+    .mobile-bottom-nav .nav-link {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 5px;
+        color: #6c757d;
+        text-decoration: none;
+        font-size: 0.75rem;
+    }
+    
+    .mobile-bottom-nav .nav-link i {
+        font-size: 1.5rem;
+        margin-bottom: 3px;
+    }
+    
+    .mobile-bottom-nav .nav-link.active {
+        color: #667eea;
+    }
+    
+    /* Add padding to content when bottom nav is present */
+    .content.has-bottom-nav {
+        padding-bottom: 70px !important;
+    }
+}
+
+/*--------------------------------------------------------------
+# LOADING STATES & SKELETON SCREENS
+--------------------------------------------------------------*/
+.skeleton {
+    animation: skeleton-loading 1s linear infinite alternate;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+}
+
+@keyframes skeleton-loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/*--------------------------------------------------------------
+# PRINT STYLES
+--------------------------------------------------------------*/
+@media print {
+    .sidebar, .mobile-nav-toggle, .btn, .navbar {
+        display: none !important;
+    }
+    
+    .content {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+    
+    .card {
+        break-inside: avoid;
+    }
+}
