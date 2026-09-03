@@ -1,6 +1,9 @@
 <?php
 session_start();
 require_once __DIR__ . '/../db_config.php';
+require_once __DIR__ . '/../includes/security.php';
+jeepnigo_require_role(['passenger', 'driver']);
+jeepnigo_require_csrf();
 
 // Set timezone to match server location (adjust to your server's timezone)
 // For Philippines, use Asia/Manila
@@ -23,8 +26,8 @@ function respond($ok, $data = [], $code = 200) {
     exit;
 }
 
-// Ensure table exists (idempotent)
-$conn->query("CREATE TABLE IF NOT EXISTS reservations (
+// Local-development convenience only. Production schema is managed by migrations.
+if (getenv('APP_ENV') !== 'production') { $conn->query("CREATE TABLE IF NOT EXISTS reservations (
     id INT PRIMARY KEY AUTO_INCREMENT,
     passenger_id INT NOT NULL,
     driver_id INT DEFAULT NULL,
@@ -40,7 +43,7 @@ $conn->query("CREATE TABLE IF NOT EXISTS reservations (
     here_at DATETIME DEFAULT NULL,
     boarded_at DATETIME DEFAULT NULL,
     INDEX (passenger_id), INDEX (driver_id), INDEX (status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); }
 
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 

@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once __DIR__ . '/../db_config.php';
+require_once __DIR__ . '/db_config.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['loginEmail']);
@@ -18,7 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // Fetch user from the database
-    $stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
+    $stmt = $conn->prepare("SELECT * FROM users WHERE email = ? AND status = 'Active'");
     $stmt->bind_param("s", $email);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -35,8 +35,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit();
         }
 
-        // Compare hashed or plain password (supports both)
-        if (password_verify($password, $user['password']) || $password === $user['password']) {
+        $passwordInfo = password_get_info($user['password']);
+        $legacyPlaintext = ($passwordInfo['algo'] === null || $passwordInfo['algo'] === 0);
+        if (password_verify($password, $user['password']) || ($legacyPlaintext && hash_equals((string)$user['password'], $password))) {
+            if ($legacyPlaintext || password_needs_rehash($user['password'], PASSWORD_DEFAULT)) {
+                $newHash = password_hash($password, PASSWORD_DEFAULT);
+                $upgrade = $conn->prepare('UPDATE users SET password = ? WHERE id = ?');
+                $upgrade->bind_param('si', $newHash, $user['id']);
+                $upgrade->execute();
+                $upgrade->close();
+            }
             session_regenerate_id(true); // Prevent session fixation attacks
 
             // Set session variables (normalize role)
@@ -74,12 +82,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
  */
 function redirectToDashboard($role) {
     $dashboardRoutes = [
-        'passenger' => '../passenger/passenger_dashboard.php?page=dashboard',
-        'driver' => '../driver/driver_dashboard.php',
-        'operator' => '../operator/operator_dashboard.php',
-        'manager' => '../manager/manager_dashboard.php',
-        'admin' => '../manager/admin.php',
-        'treasurer' => '../treasurer/treasurer_dashboard.php',
+        'passenger' => 'passenger/passenger_dashboard.php?page=dashboard',
+        'driver' => 'driver/driver_dashboard.php',
+        'operator' => 'operator/operator_dashboard.php',
+        'manager' => 'manager/manager_dashboard.php',
+        'admin' => 'manager/admin.php',
+        'treasurer' => 'treasurer/treasurer_dashboard.php',
     ];
 
     if (array_key_exists($role, $dashboardRoutes)) {

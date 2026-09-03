@@ -1,9 +1,11 @@
 <?php
 session_start();
 require_once __DIR__ . '/../db_config.php';
+require_once __DIR__ . '/../includes/security.php';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') { jeepnigo_require_csrf(); }
 
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'driver') {
-    header("Location: ../shared/index.php");
+    header("Location: ../index.php");
     exit();
 }
 
@@ -172,6 +174,7 @@ $upcomingAvailable = ($upcomingResult && $upcomingResult->num_rows > 0);
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <?= jeepnigo_security_head() ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $userType; ?> Dashboard</title>
@@ -1822,7 +1825,7 @@ $upcomingAvailable = ($upcomingResult && $upcomingResult->num_rows > 0);
             
             function notifyPassenger(receiptNumber) {
                 // Send a notification to the passenger that their payment was confirmed
-                fetch('notify_passenger.php', {
+                fetch('../passenger/notify_passenger.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
@@ -3163,7 +3166,7 @@ $upcomingAvailable = ($upcomingResult && $upcomingResult->num_rows > 0);
                                     const formData = new FormData(this);
                                     
                                     // Send payment request
-                                    fetch('process_payment.php', {
+                                    fetch('../treasurer/process_payment.php', {
                                         method: 'POST',
                                         body: formData
                                     })
@@ -3222,7 +3225,7 @@ $upcomingAvailable = ($upcomingResult && $upcomingResult->num_rows > 0);
                             });
 
                             function checkPaymentStatus() {
-                                fetch('check_payment_status.php')
+                                fetch('../shared/check_payment_status.php')
                                     .then(response => response.json())
                                     .then(data => {
                                         if (data.success) {
@@ -3719,7 +3722,7 @@ $upcomingAvailable = ($upcomingResult && $upcomingResult->num_rows > 0);
                 };
 
                 // Send to server
-                fetch('save_route.php', {
+                fetch('../shared/save_route.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -4714,7 +4717,7 @@ $upcomingAvailable = ($upcomingResult && $upcomingResult->num_rows > 0);
                         allowEnterKey: false
                     });
 
-                    const response = await fetch('request_orientation.php', {
+                    const response = await fetch('../passenger/request_orientation.php', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'

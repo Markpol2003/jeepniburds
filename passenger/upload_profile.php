@@ -1,14 +1,15 @@
 <?php
 session_start();
 require_once __DIR__ . '/../db_config.php';
+require_once __DIR__ . '/../includes/security.php';
+$userId = jeepnigo_require_role(['passenger', 'driver', 'operator', 'manager', 'admin', 'treasurer']);
+jeepnigo_require_csrf();
 
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
     echo json_encode(['success' => false, 'message' => 'User not logged in']);
     exit();
 }
-
-$userId = $_SESSION['user_id'];
 
 // Check if file was uploaded
 if (!isset($_FILES['profile_image']) || $_FILES['profile_image']['error'] !== UPLOAD_ERR_OK) {
@@ -19,8 +20,10 @@ if (!isset($_FILES['profile_image']) || $_FILES['profile_image']['error'] !== UP
 $file = $_FILES['profile_image'];
 
 // Validate file type
-$allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
-if (!in_array($file['type'], $allowedTypes)) {
+$finfo = new finfo(FILEINFO_MIME_TYPE);
+$detectedType = $finfo->file($file['tmp_name']);
+$allowedTypes = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/gif' => 'gif'];
+if (!isset($allowedTypes[$detectedType])) {
     echo json_encode(['success' => false, 'message' => 'Invalid file type. Only JPG, PNG, and GIF are allowed.']);
     exit();
 }
@@ -38,14 +41,14 @@ if (!is_dir($uploadDir)) {
 }
 
 // Generate filename with user ID
-$fileExtension = pathinfo($file['name'], PATHINFO_EXTENSION);
+$fileExtension = $allowedTypes[$detectedType];
 $filename = 'profile_' . $userId . '.' . $fileExtension;
 $filepath = $uploadDir . $filename;
 
 // Move uploaded file
 if (move_uploaded_file($file['tmp_name'], $filepath)) {
     // Update user's profile image in database (optional)
-    $stmt = $conn->prepare("UPDATE users SET profile_image = ? WHERE id = ?");
+    $stmt = $conn->prepare("UPDATE users SET profileImage = ? WHERE id = ?");
     $stmt->bind_param("si", $filename, $userId);
     $stmt->execute();
     

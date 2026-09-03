@@ -1,5 +1,8 @@
 <?php
 require_once __DIR__ . '/../db_config.php';
+require_once __DIR__ . '/../includes/security.php';
+jeepnigo_require_role(['driver', 'operator']);
+jeepnigo_require_csrf();
 header('Content-Type: application/json');
 
 // Create boundary_payments table if it doesn't exist
@@ -20,6 +23,9 @@ $createBoundaryTable = "CREATE TABLE IF NOT EXISTS boundary_payments (
 )";
 
 try {
+    if (getenv('APP_ENV') === 'production') {
+        throw new RuntimeException('Production schema is managed by migrations.');
+    }
     $conn->query($createBoundaryTable);
     
     // Check if reference_number column exists, if not add it

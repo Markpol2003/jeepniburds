@@ -1,5 +1,9 @@
 <?php
 require_once __DIR__ . '/../db_config.php';
+require_once __DIR__ . '/../includes/security.php';
+require_once __DIR__ . '/../includes/json_store.php';
+jeepnigo_require_role(['driver']);
+jeepnigo_require_csrf();
 header('Content-Type: application/json');
 $data = json_decode(file_get_contents('php://input'), true) ?? [];
 
@@ -8,8 +12,8 @@ $file = $storageDir . '/fare_compliance.json';
 if (!is_dir($storageDir)) { @mkdir($storageDir, 0777, true); }
 if (!file_exists($file)) { @file_put_contents($file, json_encode([])); }
 
-function fc_read($file){ $raw = @file_get_contents($file); $j = json_decode($raw, true); return is_array($j)? $j : []; }
-function fc_write($file, $rows){ @file_put_contents($file, json_encode($rows, JSON_PRETTY_PRINT)); }
+function fc_read($file){ return jeepnigo_json_read($file); }
+function fc_write($file, $rows){ return jeepnigo_json_write($file, $rows); }
 
 $action = $data['action'] ?? '';
 

@@ -1,6 +1,13 @@
 <?php
 session_start();
 require_once __DIR__ . '/../db_config.php';
+require_once __DIR__ . '/../includes/security.php';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') { jeepnigo_require_csrf(); }
+
+if (!isset($_SESSION['user_id']) || ($_SESSION['user_type'] ?? '') !== 'operator') {
+    header("Location: ../index.php");
+    exit();
+}
 
 // Get available jeepneys
 $available_jeepneys_query = "SELECT * FROM jeepneys WHERE status = 'Available' ORDER BY plate_number";
@@ -16,7 +23,7 @@ $sql = "CREATE TABLE IF NOT EXISTS jeepneys (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )";
 
-$conn->query($sql);
+if (getenv('APP_ENV') !== 'production') { $conn->query($sql); }
 
 // Create jeepney_assignments table if it doesn't exist
 $sql = "CREATE TABLE IF NOT EXISTS jeepney_assignments (
@@ -33,7 +40,7 @@ $sql = "CREATE TABLE IF NOT EXISTS jeepney_assignments (
     FOREIGN KEY (operator_id) REFERENCES users(id) ON DELETE CASCADE
 )";
 
-$conn->query($sql);
+if (getenv('APP_ENV') !== 'production') { $conn->query($sql); }
 
 // Add new cooperative fund payment table if not exists
 $sql = "CREATE TABLE IF NOT EXISTS cooperative_fund_payments (
@@ -50,12 +57,7 @@ $sql = "CREATE TABLE IF NOT EXISTS cooperative_fund_payments (
     userType VARCHAR(50),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 )";
-$conn->query($sql);
-
-if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'operator') {
-    header("Location: ../shared/index.php");
-    exit();
-}
+if (getenv('APP_ENV') !== 'production') { $conn->query($sql); }
 
 $userId = $_SESSION['user_id'];
 $userType = ucfirst($_SESSION['user_type']);
@@ -376,6 +378,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cooperative_payment_m
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <?= jeepnigo_security_head() ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Operator Dashboard - TEBZ</title>
@@ -1162,7 +1165,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cooperative_payment_m
                                     allowEscapeKey: false
                                 });
 
-                                const response = await fetch('request_orientation.php', {
+                                const response = await fetch('../passenger/request_orientation.php', {
                                     method: 'POST',
                                     headers: {
                                         'Content-Type': 'application/json'
@@ -1307,7 +1310,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cooperative_payment_m
                     }
 
                     function checkPaymentStatus() {
-                        fetch('check_payment_status.php')
+                        fetch('../shared/check_payment_status.php')
                             .then(response => response.json())
                             .then(data => {
                                 if (data.success) {
@@ -1659,7 +1662,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cooperative_payment_m
                                 }
                             });
                             
-                            fetch('update_profile.php', {
+                            fetch('../passenger/update_profile.php', {
                                 method: 'POST',
                                 body: formData,
                                 headers: {
@@ -1741,7 +1744,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cooperative_payment_m
                                 }
                             });
                             
-                            fetch('update_profile.php', {
+                            fetch('../passenger/update_profile.php', {
                                 method: 'POST',
                                 body: formData,
                                 headers: {
@@ -2362,7 +2365,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cooperative_payment_m
 
                                             // Add this function to check payment status and show/hide receipt button
                                             function checkPaymentStatus() {
-                                                fetch('check_payment_status.php')
+                                                fetch('../shared/check_payment_status.php')
                                                     .then(response => response.json())
                                                     .then(data => {
                                                         if (data.success) {
@@ -2395,7 +2398,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cooperative_payment_m
 
                                             // Function to view the latest receipt
                                             function viewLatestReceipt() {
-                                                fetch('get_latest_payment.php')
+                                                fetch('../treasurer/get_latest_payment.php')
                                                     .then(response => response.json())
                                                     .then(data => {
                                                         if (data.success) {
@@ -2769,7 +2772,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cooperative_payment_m
             }
 
             function checkPaymentStatus() {
-                fetch('check_payment_status.php')
+                fetch('../shared/check_payment_status.php')
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
@@ -4335,7 +4338,7 @@ coopForm.addEventListener('submit', function(e) {
     } else if (method === 'cash') {
         payload.reference_number = formData.get('reference_number');
     }
-    fetch('cooperative_fund.php', {
+    fetch('../treasurer/cooperative_fund.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -4368,7 +4371,7 @@ coopForm.addEventListener('submit', function(e) {
 
 // Fetch and display cooperative fund payments for this user
 function fetchCoopFundsList() {
-    fetch('cooperative_fund.php', {
+    fetch('../treasurer/cooperative_fund.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'list', member_id: <?= json_encode($userId) ?> })

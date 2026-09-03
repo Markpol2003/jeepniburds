@@ -11,6 +11,8 @@ RUN sed -i 's/Listen 80/Listen 10000/' /etc/apache2/ports.conf \
 COPY . /var/www/html/
 
 RUN chown -R www-data:www-data /var/www/html \
-    && chmod -R 755 /var/www/html
+    && find /var/www/html -type d -exec chmod 755 {} \; \
+    && find /var/www/html -type f -exec chmod 644 {} \; \
+    && chmod -R 750 /var/www/html/uploads /var/www/html/data
 
 EXPOSE 10000

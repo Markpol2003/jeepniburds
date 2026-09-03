@@ -1,5 +1,8 @@
 <?php
 require_once __DIR__ . '/../db_config.php';
+require_once __DIR__ . '/../includes/security.php';
+jeepnigo_require_role(['passenger', 'driver']);
+jeepnigo_require_csrf();
 header('Content-Type: application/json');
 $data = json_decode(file_get_contents('php://input'), true);
 

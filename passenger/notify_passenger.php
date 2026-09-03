@@ -1,4 +1,7 @@
 <?php
+require_once __DIR__ . '/../includes/security.php';
+jeepnigo_require_role(['driver']);
+jeepnigo_require_csrf();
 require_once __DIR__ . '/../db_config.php';
 header('Content-Type: application/json');
 

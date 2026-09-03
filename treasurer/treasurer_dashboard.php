@@ -7,6 +7,8 @@ ob_start();
 // Start session and include database configuration
 session_start();
 require_once __DIR__ . '/../db_config.php';
+require_once __DIR__ . '/../includes/security.php';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') { jeepnigo_require_csrf(); }
 
 // Check and modify foreign key constraints
 try {
@@ -283,7 +285,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['confirm_payment'])) {
 
 // Regular page access check
 if (!$isAjax && (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'treasurer')) {
-    header("Location: ../shared/index.php");
+    header("Location: ../index.php");
     exit();
 }
 
@@ -474,6 +476,7 @@ unset($_SESSION['confirmed_user']);
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <?= jeepnigo_security_head() ?>
     <meta charset="UTF-8">
     <title>Treasurer Dashboard</title>
     <!-- Favicon -->
@@ -875,7 +878,7 @@ unset($_SESSION['confirmed_user']);
                 }
             });
             
-            fetch('update_profile.php', {
+            fetch('../passenger/update_profile.php', {
                 method: 'POST',
                 body: formData,
                 headers: {

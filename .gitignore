@@ -1,0 +1,10 @@
+.env
+.env.*
+!.env.example
+pay_fare_debug.log
+uploads/*
+!uploads/.htaccess
+data/*.json
+.history/
+node_modules/
+

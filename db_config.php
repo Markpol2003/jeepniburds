@@ -14,9 +14,9 @@ $parseDatabaseUrl = function ($url) {
 	$parts = parse_url($url);
 	if ($parts === false) return null;
 	$host = isset($parts['host']) ? $parts['host'] : 'localhost';
-	$user = isset($parts['user']) ? $parts['user'] : 'root';
-	$pass = isset($parts['pass']) ? $parts['pass'] : '';
-	$db   = isset($parts['path']) ? ltrim($parts['path'], '/') : 'jeepnigo';
+	$user = isset($parts['user']) ? rawurldecode($parts['user']) : 'root';
+	$pass = isset($parts['pass']) ? rawurldecode($parts['pass']) : '';
+	$db   = isset($parts['path']) ? rawurldecode(ltrim($parts['path'], '/')) : 'jeepnigo';
 	$port = isset($parts['port']) ? (int)$parts['port'] : null;
 	return ['host' => $host, 'user' => $user, 'pass' => $pass, 'db' => $db, 'port' => $port];
 };
@@ -112,27 +112,4 @@ try {
 	exit();
 }
 
-// Create user_receipts table if it doesn't exist
-$createUserReceiptsTable = "CREATE TABLE IF NOT EXISTS user_receipts (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    user_id INT NOT NULL,
-    payment_id INT NOT NULL,
-    receipt_number VARCHAR(50) NOT NULL,
-    amount DECIMAL(10,2) NOT NULL,
-    payment_method VARCHAR(50) NOT NULL,
-    payment_date DATETIME NOT NULL,
-    status VARCHAR(20) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (payment_id) REFERENCES membership_payments(id) ON DELETE CASCADE,
-    UNIQUE KEY unique_payment (payment_id)
-)";
-
-try {
-    $conn->query($createUserReceiptsTable);
-} catch (Exception $e) {
-    // Table might already exist or there might be an error, but we'll continue
-    // The error will be handled when trying to access the table
-}
 ?>

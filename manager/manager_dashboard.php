@@ -1,6 +1,13 @@
 <?php
 session_start();
 require_once __DIR__ . '/../db_config.php';
+require_once __DIR__ . '/../includes/security.php';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') { jeepnigo_require_csrf(); }
+
+if (!isset($_SESSION['user_id']) || ($_SESSION['user_type'] ?? '') !== 'manager') {
+    header("Location: ../index.php");
+    exit();
+}
 
 // Handle Orientation Create
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_orientation'])) {
@@ -43,11 +50,6 @@ if (isset($_GET['delete_orientation'])) {
 }
 
 // Check if the user is logged in and is a manager
-if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'manager') {
-    header("Location: ../shared/index.php");
-    exit();
-}
-
 // Fetch session data
 $userFirstName = $_SESSION['user_firstName'];
 $userLastName = $_SESSION['user_lastName'];
@@ -91,6 +93,7 @@ if (isset($_GET['clear_notifications'])) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <?= jeepnigo_security_head() ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cooperative Manager Dashboard</title>

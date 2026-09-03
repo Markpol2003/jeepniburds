@@ -1,6 +1,13 @@
 <?php
 session_start();
 require_once __DIR__ . '/../db_config.php';
+require_once __DIR__ . '/../includes/security.php';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') { jeepnigo_require_csrf(); }
+
+if (!isset($_SESSION['user_id'])) {
+    header("Location: ../index.php");
+    exit();
+}
 
 // 🔄 Refresh user_type from database in case it was updated by manager
 $stmt = $conn->prepare("SELECT userType FROM users WHERE id = ?");
@@ -13,11 +20,6 @@ if ($row = $result->fetch_assoc()) {
 
 
 // ✅ Check access after refreshing role
-if (!isset($_SESSION['user_id'])) {
-    header("Location: ../shared/index.php");
-    exit();
-}
-
 // Only block users who are NOT yet verified and NOT 'passenger'
 if ($_SESSION['user_type'] !== 'passenger') {
     // Check if they have verified submission
@@ -28,7 +30,7 @@ if ($_SESSION['user_type'] !== 'passenger') {
     $verifiedResult = $stmt->get_result();
 
     if ($verifiedResult->num_rows === 0) {
-        header("Location: ../shared/index.php");
+        header("Location: ../index.php");
         exit();
     }
 }
@@ -62,6 +64,7 @@ $page = $_GET['page'] ?? 'dashboard';
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <?= jeepnigo_security_head() ?>
     <meta charset="UTF-8">
     <title>Passenger Dashboard | JeepniGo</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1382,7 +1385,7 @@ function fetchBoardingEvents(route) {
         <!-- Board and Pay Fare -->
         <h2>Board and Pay Fare</h2>
         <p>Please confirm your fare payment when boarding the jeepney.</p>
-        <form action="confirm_fare.php" method="POST">
+        <form action="../driver/confirm_fare.php" method="POST">
             <div class="mb-3">
                 <label for="fare_amount" class="form-label">Fare Amount</label>
                 <input type="number" name="fare_amount" id="fare_amount" class="form-control" placeholder="Enter Fare Amount" required>

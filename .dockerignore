@@ -1,0 +1,15 @@
+.git
+.history
+.env
+.env.*
+node_modules
+test_debug
+add_*.php
+fix_*.php
+force_*.php
+update_cooperative_status.php
+uploads/*
+!uploads/.htaccess
+data/*.json
+*.sql
+*.log

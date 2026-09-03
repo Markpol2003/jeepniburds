@@ -1,5 +1,9 @@
 <?php
 require_once __DIR__ . '/../db_config.php';
+require_once __DIR__ . '/../includes/security.php';
+require_once __DIR__ . '/../includes/json_store.php';
+jeepnigo_require_role(['driver']);
+jeepnigo_require_csrf();
 header('Content-Type: application/json');
 
 $data = json_decode(file_get_contents('php://input'), true) ?? [];
@@ -15,13 +19,11 @@ if (!file_exists($manualFile)) {
 
 function readManual($file)
 {
-    $raw = @file_get_contents($file);
-    $json = json_decode($raw, true);
-    return is_array($json) ? $json : [];
+    return jeepnigo_json_read($file);
 }
 function writeManual($file, $rows)
 {
-    @file_put_contents($file, json_encode($rows, JSON_PRETTY_PRINT));
+    return jeepnigo_json_write($file, $rows);
 }
 
 // Save manual counts (Ride_In, Ride_Out) per plate, date, route, start, end

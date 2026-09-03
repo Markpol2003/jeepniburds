@@ -1,4 +1,8 @@
 <?php
+require_once __DIR__ . '/../includes/security.php';
+require_once __DIR__ . '/../includes/json_store.php';
+jeepnigo_require_role(['passenger', 'driver']);
+jeepnigo_require_csrf();
 header('Content-Type: application/json');
 
 $dataDir = __DIR__ . '/../data';
@@ -12,13 +16,11 @@ if (!file_exists($storeFile)) {
 }
 
 function readStore($file) {
-    $raw = @file_get_contents($file);
-    $json = json_decode($raw, true);
-    return is_array($json) ? $json : [];
+    return jeepnigo_json_read($file);
 }
 
 function writeStore($file, $data) {
-    @file_put_contents($file, json_encode($data, JSON_PRETTY_PRINT));
+    return jeepnigo_json_write($file, $data);
 }
 
 $body = json_decode(file_get_contents('php://input'), true) ?? [];

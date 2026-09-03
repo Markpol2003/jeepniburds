@@ -1,10 +1,13 @@
 <?php
 session_start();
 require_once __DIR__ . '/../db_config.php';
+require_once __DIR__ . '/../includes/security.php';
+jeepnigo_require_role(['passenger']);
+jeepnigo_require_csrf();
 
 // Ensure user is logged in
 if (!isset($_SESSION['user_id'])) {
-    header('Location: ../shared/index.php');
+    header('Location: ../index.php');
     exit();
 }
 

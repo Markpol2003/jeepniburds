@@ -1,6 +1,9 @@
 <?php
 session_start();
 require_once __DIR__ . '/../db_config.php';
+require_once __DIR__ . '/../includes/security.php';
+jeepnigo_require_role(['passenger', 'driver']);
+jeepnigo_require_csrf();
 
 // Set timezone to match server location (Asia/Manila)
 date_default_timezone_set('Asia/Manila');
@@ -27,7 +30,10 @@ if ($action === 'pay') {
         echo json_encode(['success' => false, 'message' => 'Missing required fields.']);
         exit;
     }
-    $passenger_id = $data['passenger_id'];
+    $passenger_id = (int)$data['passenger_id'];
+    if (($_SESSION['user_type'] ?? '') === 'passenger' && $passenger_id !== (int)$_SESSION['user_id']) {
+        jeepnigo_json_error('You cannot submit a fare for another passenger.', 403);
+    }
     $route = $data['route'];
     $amount = $data['amount'];
     $payment_method = $data['payment_method'];

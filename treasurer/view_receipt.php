@@ -3,7 +3,7 @@ session_start();
 require_once __DIR__ . '/../db_config.php';
 
 if (!isset($_SESSION['user_id'])) {
-    header("Location: ../shared/index.php");
+    header("Location: ../index.php");
     exit();
 }
 
@@ -121,7 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['payment_id'])) {
     echo $html;
     exit();
 } else {
-    header("Location: ../shared/index.php");
+    header("Location: ../index.php");
     exit();
 }
 ?> 

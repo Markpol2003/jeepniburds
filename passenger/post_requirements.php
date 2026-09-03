@@ -4,7 +4,7 @@ require_once __DIR__ . '/../db_config.php';
 
 // Ensure the user is a manager
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'manager') {
-    header("Location: ../shared/index.php");
+    header("Location: ../index.php");
     exit();
 }
 

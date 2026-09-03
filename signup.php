@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../db_config.php';
+require_once __DIR__ . '/db_config.php';
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
@@ -8,7 +8,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $middleName = !empty($_POST['middleName']) ? htmlspecialchars($_POST['middleName']) : null;
     $lastName = htmlspecialchars($_POST['lastName']);
     $email = htmlspecialchars($_POST['email']);
-    $password = $_POST['password']; // Store as plain text
+    $password = $_POST['password'];
     $confirm_password = $_POST['confirm_password'];
     $userType = 'passenger'; // Default userType set to 'passenger'
 
@@ -32,8 +32,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     try {
         // Prepare the SQL query
+        $passwordHash = password_hash($password, PASSWORD_DEFAULT);
         $stmt = $conn->prepare("INSERT INTO users (email, password, firstName, middleName, lastName, userType) VALUES (?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("ssssss", $email, $password, $firstName, $middleName, $lastName, $userType);
+        $stmt->bind_param("ssssss", $email, $passwordHash, $firstName, $middleName, $lastName, $userType);
 
         if ($stmt->execute()) {
             header("Location: index.php?signup_success=Account created successfully");

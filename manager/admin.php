@@ -1,15 +1,17 @@
 <?php
 session_start();
 require_once __DIR__ . '/../db_config.php';
+require_once __DIR__ . '/../includes/security.php';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') { jeepnigo_require_csrf(); }
 
 // Admin-only access
 if (!isset($_SESSION['user_id']) || strtolower($_SESSION['user_type'] ?? '') !== 'admin') {
-    header('Location: ../shared/index.php');
+    header('Location: ../index.php');
     exit();
 }
 
 // Ensure applications table exists
-$conn->query("CREATE TABLE IF NOT EXISTS cooperative_applications (
+if (getenv('APP_ENV') !== 'production') { $conn->query("CREATE TABLE IF NOT EXISTS cooperative_applications (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     cooperative_name VARCHAR(255) NOT NULL,
@@ -18,7 +20,7 @@ $conn->query("CREATE TABLE IF NOT EXISTS cooperative_applications (
     contact_email VARCHAR(255) NOT NULL,
     status VARCHAR(50) NOT NULL DEFAULT 'Pending',
     submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); }
 
 // Handle actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['application_id'], $_POST['action'])) {
@@ -294,6 +296,7 @@ if ($section === 'performance') {
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <?= jeepnigo_security_head() ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin · Dashboard</title>

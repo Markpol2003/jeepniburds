@@ -1,0 +1,10 @@
+Options -Indexes
+
+<FilesMatch "^(add_|fix_|force_|update_cooperative_status).*\.php$">
+    Require all denied
+</FilesMatch>
+
+<FilesMatch "^(jeepnigo\.sql|pay_fare_debug\.log)$">
+    Require all denied
+</FilesMatch>
+

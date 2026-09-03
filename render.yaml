@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: jeepnigo
+    runtime: docker
+    healthCheckPath: /health.php
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: DB_SSL
+        value: "true"
+      - key: DB_SSL_VERIFY
+        value: "true"
+
